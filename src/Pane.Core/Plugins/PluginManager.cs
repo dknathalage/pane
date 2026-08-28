@@ -24,17 +24,18 @@ public sealed class PluginManager
     readonly HashSet<string> _disabled = new();     // ids the user disabled
     readonly SettingsStore? _store;
     readonly Dictionary<string, Dictionary<string, string>> _pluginSettings = new();
+    readonly PluginFetcher? _fetcher;
 
-    public PluginManager(string dataRoot, SettingsStore? store = null)
+    public PluginManager(string dataRoot, SettingsStore? store = null, PluginFetcher? fetcher = null)
     {
         _dataRoot = dataRoot;
         _store = store;
+        _fetcher = fetcher;
         if (_store is not null)
         {
-            foreach (var id in _store.Load().DisabledPlugins)
-                _disabled.Add(id);
-            foreach (var kv in _store.Load().PluginSettings)
-                _pluginSettings[kv.Key] = new Dictionary<string, string>(kv.Value);
+            var s = _store.Load();
+            foreach (var id in s.DisabledPlugins) _disabled.Add(id);
+            foreach (var kv in s.PluginSettings) _pluginSettings[kv.Key] = new Dictionary<string, string>(kv.Value);
         }
     }
 
@@ -50,16 +51,53 @@ public sealed class PluginManager
         return PluginSettingsMerge.Merge(meta?.Settings, _pluginSettings.GetValueOrDefault(id));
     }
 
+    public static string? FindPluginDll(string dir)
+    {
+        var dlls = Directory.GetFiles(dir, "*.dll");
+        return dlls.FirstOrDefault(f => Path.GetFileNameWithoutExtension(f).StartsWith("Pane.Plugins"))
+               ?? dlls.FirstOrDefault();
+    }
+
     public async Task LoadAllAsync(string pluginsRoot)
     {
         if (!Directory.Exists(pluginsRoot)) return;
         foreach (var dir in Directory.GetDirectories(pluginsRoot))
         {
-            var dlls = Directory.GetFiles(dir, "*.dll");
-            var dll = dlls.FirstOrDefault(f => Path.GetFileNameWithoutExtension(f).StartsWith("Pane.Plugins"))
-                      ?? dlls.FirstOrDefault();
+            var dll = FindPluginDll(dir);
             if (dll is null) continue;
             await LoadOneAsync(dll);
+        }
+    }
+
+    public async Task<PluginEntry> InstallFromUrlAsync(string url, CancellationToken ct = default)
+    {
+        if (_fetcher is null)
+            throw new InvalidOperationException("PluginManager has no fetcher configured");
+
+        var temp = await _fetcher.DownloadAndExtractAsync(url, ct);
+        try
+        {
+            var dll = FindPluginDll(temp)
+                ?? throw new PluginFetchException("No plugin dll found in the downloaded archive");
+
+            // Read the plugin id from a throwaway load, then unload before copying.
+            var (probe, pctx) = PluginLoader.CreateContext(dll);
+            var id = probe.Metadata.Id;
+            await probe.DisposeAsync();
+            pctx.Unload();
+
+            var pluginsRoot = Path.Combine(_dataRoot, "plugins");
+            var dst = Path.Combine(pluginsRoot, id);
+            Directory.CreateDirectory(dst);
+            CopyDir(temp, dst);
+
+            var installedDll = Path.Combine(dst, Path.GetFileName(dll));
+            await LoadOneAsync(installedDll);
+            return List().First(e => e.Metadata.Id == id);
+        }
+        finally
+        {
+            TryDelete(temp);
         }
     }
 
