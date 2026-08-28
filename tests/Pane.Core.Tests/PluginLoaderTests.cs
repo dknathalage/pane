@@ -33,4 +33,11 @@ public class PluginLoaderTests
         }
         finally { ctx.Unload(); }
     }
+
+    [Fact]
+    public void Load_returns_plugin_instance()
+    {
+        var plugin = PluginLoader.Load(TestPluginDll());
+        Assert.Equal("test", plugin.Metadata.Id);
+    }
 }
