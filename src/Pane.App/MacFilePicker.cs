@@ -25,13 +25,15 @@ internal sealed class MacFilePicker : IFilePicker
         if (process is null)
             return null;
 
-        string stdout = await process.StandardOutput.ReadToEndAsync();
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+        await Task.WhenAll(stdoutTask, stderrTask);
         await process.WaitForExitAsync();
 
         if (process.ExitCode != 0)
             return null;   // User cancelled
 
-        string path = stdout.Trim();
+        string path = stdoutTask.Result.Trim();
         return string.IsNullOrEmpty(path) ? null : path;
     }
 }

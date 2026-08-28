@@ -11,7 +11,7 @@ namespace Pane.App;
 internal sealed class AppWindowController : IWindowController
 {
     private readonly PhotinoWindow _window;
-    private bool _isVisible = true;
+    private volatile bool _isVisible = true;
 
     public AppWindowController(PhotinoWindow window)
     {

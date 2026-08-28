@@ -86,7 +86,12 @@ hotkey.Pressed += () =>
 // ── Run ────────────────────────────────────────────────────────────────────
 // app.Run() is synchronous — it enters the native message loop and returns
 // only when the window is closed.
-app.Run();
-
-// Cleanup: dispose hotkey (stops the SharpHook background thread).
-hotkey.Dispose();
+try
+{
+    app.Run();
+}
+finally
+{
+    // Cleanup: dispose hotkey (stops the SharpHook background thread).
+    hotkey.Dispose();
+}
