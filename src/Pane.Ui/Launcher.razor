@@ -25,9 +25,11 @@
 
     async Task RunQuery()
     {
-        _cts?.Cancel();
+        var old = _cts;
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
+        old?.Cancel();
+        old?.Dispose();
 
         var plugins = Manager.List()
             .Where(e => e.State == PluginState.Enabled && e.Instance is not null)
@@ -48,10 +50,10 @@
         switch (e.Key)
         {
             case "ArrowDown":
-                _selected = Math.Min(_selected + 1, _results.Count - 1);
+                if (_results.Count > 0) _selected = Math.Min(_selected + 1, _results.Count - 1);
                 break;
             case "ArrowUp":
-                _selected = Math.Max(_selected - 1, 0);
+                if (_results.Count > 0) _selected = Math.Max(_selected - 1, 0);
                 break;
             case "Enter":
                 if (_selected >= 0 && _selected < _results.Count)
