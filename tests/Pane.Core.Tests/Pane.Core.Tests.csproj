@@ -24,4 +24,8 @@
     <ProjectReference Include="..\..\src\Pane.Core\Pane.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="Fixtures\**" />
+  </ItemGroup>
+
 </Project>
