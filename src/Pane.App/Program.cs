@@ -37,6 +37,11 @@ builder.Services.AddSingleton<IGlobalHotkey, SharpHookGlobalHotkey>();
 // IFilePicker: osascript-based folder picker for macOS (no ObjC interop).
 builder.Services.AddSingleton<IFilePicker, MacFilePicker>();
 
+// Window controller: registered now, attached to the real window post-Build.
+// Exposing it via DI lets Blazor (e.g. Escape) hide the window too.
+builder.Services.AddSingleton<AppWindowController>();
+builder.Services.AddSingleton<IWindowController>(sp => sp.GetRequiredService<AppWindowController>());
+
 // ── Root component ─────────────────────────────────────────────────────────
 // Pane.Ui.Launcher is the top-level Blazor component; mounts into <div id="app">.
 builder.RootComponents.Add<Pane.Ui.Launcher>("#app");
@@ -59,12 +64,13 @@ app.MainWindow
     .SetHeight(480);
 app.MainWindow.Centered = true;   // property, not a method
 
-// Register IWindowController now that we have a PhotinoWindow handle.
-// PhotinoBlazorAppBuilder doesn't expose the window before Build(), so we
-// register the controller post-build via the service collection workaround.
-// Because the DI container is sealed after Build(), we resolve IWindowController
-// via a direct reference captured in the hotkey closure instead of DI.
-var windowController = new AppWindowController(app.MainWindow);
+// When launched at login (--startup), start hidden so it doesn't flash a
+// window every boot; the user summons it with the global hotkey.
+var startHidden = args.Contains("--startup");
+
+// Attach the DI-registered controller to the real window now that it exists.
+var windowController = app.Services.GetRequiredService<AppWindowController>();
+windowController.Attach(app.MainWindow, startVisible: !startHidden);
 
 // ── Post-startup tasks ─────────────────────────────────────────────────────
 // Load plugins before the message loop starts.

@@ -43,4 +43,23 @@ public class ResultRankerTests
         var ranked = _ranker.Rank(q, Meta(), new[] { R("money", search: "~/repos/money") }).ToList();
         Assert.Single(ranked);
     }
+
+    [Fact]
+    public void Token_matching_plugin_keyword_lets_other_token_match_the_item()
+    {
+        // "tray" hits the title; "code" hits the plugin's keyword → still matches.
+        var meta = new PluginMetadata("vscode", "VSCode Repos", "📂", "1", "open repos",
+            new[] { "code", "repo", "vscode" });
+        var q = new PaneQuery("tray code", null, "tray code");
+        var ranked = _ranker.Rank(q, meta, new[] { R("cloudtray", search: "/Users/x/repos/cloudtray") }).ToList();
+        Assert.Single(ranked);
+    }
+
+    [Fact]
+    public void Drops_when_a_token_matches_neither_item_nor_plugin()
+    {
+        var q = new PaneQuery("tray zzz", null, "tray zzz");
+        var ranked = _ranker.Rank(q, Meta(), new[] { R("cloudtray") }).ToList();
+        Assert.Empty(ranked);
+    }
 }

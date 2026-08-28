@@ -5,8 +5,18 @@
     {
         var r = Results[i];
         var isSel = i == Selected;
+        var icon = r.Result.Icon ?? "";
         <li class="pane-item @(isSel ? "sel" : "")">
-            <span class="pane-icon">@IconFor(r.PluginId, r.Result.Icon)</span>
+            <span class="pane-icon @(IsImage(icon) ? "img" : "")">
+                @if (IsImage(icon))
+                {
+                    <img src="@icon" alt="" />
+                }
+                else
+                {
+                    @IconFor(r.PluginId, icon)
+                }
+            </span>
             <span class="pane-text">
                 <span class="pane-title">@Highlight(r.Result.Title, r.TitleHighlights)</span>
                 @if (!string.IsNullOrEmpty(r.Result.Subtitle))
@@ -14,6 +24,7 @@
                     <span class="pane-subtitle">@r.Result.Subtitle</span>
                 }
             </span>
+            <span class="pane-action">@ActionFor(r.PluginId)</span>
             @if (isSel)
             {
                 <span class="pane-enter">↵</span>
@@ -25,6 +36,19 @@
 @code {
     [Parameter] public IReadOnlyList<ScoredResult> Results { get; set; } = Array.Empty<ScoredResult>();
     [Parameter] public int Selected { get; set; }
+
+    static bool IsImage(string icon) =>
+        icon.StartsWith("data:") || icon.StartsWith("file:") || icon.StartsWith("/");
+
+    // What pressing Enter will do — shown on every row.
+    static string ActionFor(string pluginId) => pluginId switch
+    {
+        "vscode"  => "Open in VSCode",
+        "apps"    => "Launch",
+        "scripts" => "Run script",
+        "calc"    => "Copy",
+        _         => "Open",
+    };
 
     static MarkupString Highlight(string text, IReadOnlyList<int> positions)
     {
@@ -41,15 +65,28 @@
         return (MarkupString)sb.ToString();
     }
 
-    // Crisp inline-SVG icons keyed by plugin id; fall back to the plugin's emoji.
-    static MarkupString IconFor(string pluginId, string emoji) => pluginId switch
+    // Non-image icon: per-item emoji where the plugin provides one (scripts),
+    // else a crisp plugin-type SVG.
+    static MarkupString IconFor(string pluginId, string icon) => pluginId switch
     {
-        "vscode" => Svg("<path d=\"M3 7a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.4.6L12 7h5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/>"),
-        "apps" => Svg("<rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/>"),
-        "scripts" => Svg("<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"m7 9 3 3-3 3\"/><line x1=\"13\" y1=\"15\" x2=\"17\" y2=\"15\"/>"),
-        "calc" => Svg("<rect x=\"5\" y=\"2\" width=\"14\" height=\"20\" rx=\"2\"/><line x1=\"8\" y1=\"6\" x2=\"16\" y2=\"6\"/><line x1=\"8\" y1=\"11\" x2=\"9\" y2=\"11\"/><line x1=\"12\" y1=\"11\" x2=\"12\" y2=\"11\"/><line x1=\"15\" y1=\"11\" x2=\"16\" y2=\"11\"/><line x1=\"8\" y1=\"15\" x2=\"9\" y2=\"15\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"15\"/><line x1=\"8\" y1=\"18\" x2=\"9\" y2=\"18\"/>"),
-        _ => (MarkupString)System.Net.WebUtility.HtmlEncode(string.IsNullOrEmpty(emoji) ? "•" : emoji),
+        "vscode"  => FolderSvg,
+        "calc"    => CalcSvg,
+        "apps"    => GridSvg,
+        "scripts" => string.IsNullOrEmpty(icon) ? TerminalSvg : Emoji(icon),
+        _         => string.IsNullOrEmpty(icon) ? DotSvg : Emoji(icon),
     };
+
+    static MarkupString Emoji(string s) => (MarkupString)System.Net.WebUtility.HtmlEncode(s);
+
+    static readonly MarkupString FolderSvg =
+        Svg("<path d=\"M3 7a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.4.6L12 7h5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/>");
+    static readonly MarkupString GridSvg =
+        Svg("<rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/>");
+    static readonly MarkupString TerminalSvg =
+        Svg("<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"m7 9 3 3-3 3\"/><line x1=\"13\" y1=\"15\" x2=\"17\" y2=\"15\"/>");
+    static readonly MarkupString CalcSvg =
+        Svg("<rect x=\"5\" y=\"2\" width=\"14\" height=\"20\" rx=\"2\"/><line x1=\"8\" y1=\"6\" x2=\"16\" y2=\"6\"/><line x1=\"8\" y1=\"11\" x2=\"9\" y2=\"11\"/><line x1=\"12\" y1=\"11\" x2=\"12\" y2=\"11\"/><line x1=\"15\" y1=\"11\" x2=\"16\" y2=\"11\"/><line x1=\"8\" y1=\"15\" x2=\"9\" y2=\"15\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"15\"/><line x1=\"8\" y1=\"18\" x2=\"9\" y2=\"18\"/>");
+    static readonly MarkupString DotSvg = Svg("<circle cx=\"12\" cy=\"12\" r=\"3\"/>");
 
     static MarkupString Svg(string inner) => (MarkupString)
         $"<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">{inner}</svg>";

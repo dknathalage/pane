@@ -1,5 +1,6 @@
 @inject PluginManager Manager
 @inject QueryDispatcher Dispatcher
+@inject IWindowController Window
 
 <div class="pane-root" @onkeydown="OnKeyDown" tabindex="-1">
     @if (_showSettings)
@@ -111,6 +112,13 @@
                     _showSettings = false;
                     _text = "";
                     _results = Array.Empty<ScoredResult>();
+                }
+                else
+                {
+                    // Spotlight-style: Escape dismisses the launcher.
+                    _text = "";
+                    await RunQuery();
+                    Window.Hide();
                 }
                 break;
             case "ArrowDown":
