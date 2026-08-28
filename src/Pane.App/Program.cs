@@ -64,15 +64,14 @@ app.MainWindow
     .SetHeight(480);
 app.MainWindow.Centered = true;   // property, not a method
 
-// When launched at login (--startup), start hidden so it doesn't flash a
-// window every boot; the user summons it with the global hotkey. Minimized is
-// a safe pre-Run property (unlike SetLeft/SetTop, which crash before Run).
+// When launched at login (--startup) we want it to run in the background.
+// Photino crashes if the window is configured hidden BEFORE Run, so we start
+// visible and dismiss it just after the window comes up (see below).
 var startHidden = args.Contains("--startup");
-if (startHidden) app.MainWindow.Minimized = true;
 
 // Attach the DI-registered controller to the real window now that it exists.
 var windowController = app.Services.GetRequiredService<AppWindowController>();
-windowController.Attach(app.MainWindow, startVisible: !startHidden);
+windowController.Attach(app.MainWindow, startVisible: true);
 
 // ── Post-startup tasks ─────────────────────────────────────────────────────
 // Load plugins before the message loop starts.
@@ -90,6 +89,18 @@ hotkey.Pressed += () =>
     // per Photino.NET docs (it posts to the native queue). No marshal needed.
     windowController.ToggleVisible();
 };
+
+// Background start: once the window is up, dismiss it so Pane sits quietly
+// until the hotkey. Runs on a background thread after Run() begins — the
+// native window is live by then, so Hide() (off-screen) is safe.
+if (startHidden)
+{
+    _ = Task.Run(async () =>
+    {
+        await Task.Delay(1500);
+        try { windowController.Hide(); } catch { /* best-effort */ }
+    });
+}
 
 // ── Run ────────────────────────────────────────────────────────────────────
 // app.Run() is synchronous — it enters the native message loop and returns
