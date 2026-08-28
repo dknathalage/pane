@@ -88,7 +88,7 @@ public static class Expression
         foreach (var t in rpn)
         {
             if (t == "u-") { if (st.Count < 1) throw new FormatException("insufficient operands"); st.Push(-st.Pop()); }
-            else if (t == "u+") { if (st.Count < 1) throw new FormatException("insufficient operands"); /* no-op */ }
+            else if (t == "u+") { if (st.Count < 1) throw new FormatException("insufficient operands"); var x = st.Pop(); st.Push(x); }
             else if (double.TryParse(t, NumberStyles.Any, CultureInfo.InvariantCulture, out var num)) st.Push(num);
             else
             {

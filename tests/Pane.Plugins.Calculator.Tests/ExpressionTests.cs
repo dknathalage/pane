@@ -11,6 +11,8 @@ public class ExpressionTests
     [InlineData("2 * -3", -6)]
     [InlineData("-(3 + 4)", -7)]
     [InlineData("2 * (3 + -4)", -2)]
+    [InlineData("+3", 3)]
+    [InlineData("2 * +3", 6)]
     public void Evaluates_valid_expressions(string input, double expected)
     {
         Assert.True(Expression.TryEval(input, out var r));
