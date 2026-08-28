@@ -8,12 +8,48 @@
     }
     else
     {
-        <input class="pane-search"
-               value="@_text"
-               @oninput="OnInput"
-               placeholder="Search…"
-               autofocus />
-        <ResultList Results="_results" Selected="_selected" />
+        <div class="pane-search-row">
+            <svg class="pane-search-icon" viewBox="0 0 24 24" width="20" height="20" fill="none"
+                 stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7" />
+                <line x1="21" y1="21" x2="16.5" y2="16.5" />
+            </svg>
+            <input class="pane-search"
+                   value="@_text"
+                   @oninput="OnInput"
+                   placeholder="Search apps, repos, scripts, math…"
+                   autofocus
+                   spellcheck="false"
+                   autocomplete="off" />
+        </div>
+
+        @if (_results.Count > 0)
+        {
+            <div class="pane-body">
+                <ResultList Results="_results" Selected="_selected" />
+            </div>
+            <div class="pane-footer">
+                <span class="pane-count">@_results.Count result@(_results.Count == 1 ? "" : "s")</span>
+                <span class="pane-hints">
+                    <kbd>↑</kbd><kbd>↓</kbd> navigate
+                    <kbd>↵</kbd> open
+                    <kbd>esc</kbd> close
+                </span>
+            </div>
+        }
+        else
+        {
+            <div class="pane-empty">
+                @if (string.IsNullOrWhiteSpace(_text))
+                {
+                    <span>Start typing to search — or type <b>settings</b> to manage plugins.</span>
+                }
+                else
+                {
+                    <span>No results for “@_text”.</span>
+                }
+            </div>
+        }
     }
 </div>
 
@@ -23,6 +59,10 @@
     bool _showSettings;
     IReadOnlyList<ScoredResult> _results = Array.Empty<ScoredResult>();
     CancellationTokenSource? _cts;
+
+    // Populate with everything on open (Raycast-style), so the launcher is
+    // immediately useful and empty-query results rank by BaseScore.
+    protected override async Task OnInitializedAsync() => await RunQuery();
 
     async Task OnInput(ChangeEventArgs e)
     {
