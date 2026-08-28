@@ -72,29 +72,78 @@ Each plugin builds into its own folder under a runtime `plugins/` directory
 
 ```csharp
 public interface IPlugin {
-    PluginMetadata Metadata { get; }                        // id, name, icon, keyword prefix, version
+    PluginMetadata Metadata { get; }                        // searchable descriptor of the plugin
     Task InitializeAsync(IPluginContext ctx);               // logger, settings, paths
     IAsyncEnumerable<PaneResult> QueryAsync(PaneQuery q, CancellationToken ct);
 }
 
-public record PluginMetadata(string Id, string Name, string Icon,
-                             string? Keyword, string Version);
+public record PluginMetadata(
+    string Id,
+    string Name,
+    string Icon,
+    string Version,
+    string Description,                       // human summary; also fuzzy-searchable
+    IReadOnlyList<string> Keywords,          // aliases the plugin answers to (routing/scoping)
+    string? Keyword = null,                  // optional explicit prefix to scope to this plugin (e.g. ">")
+    int Priority = 0);                        // tie-breaker / bias when scores are close
 
 public record PaneQuery(string RawText, string? Keyword, string Terms);
 
-public record PaneResult(string Title, string Subtitle, string Icon,
-                         double Score, Func<Task> Activate); // Enter runs Activate()
+public record PaneResult(
+    string Title,
+    string Subtitle,
+    string Icon,
+    double BaseScore,                        // plugin's own relevance (recency, usage, exact-ness)
+    Func<Task> Activate,                     // Enter runs this
+    string? SearchText = null);              // extra text to fuzzy-match beyond Title (path, tags, aliases)
 
 public interface IPluginContext {
     IPluginLogger Logger { get; }
-    string DataDirectory { get; }        // per-plugin writable dir
+    string DataDirectory { get; }            // per-plugin writable dir
     IReadOnlyDictionary<string, string> Settings { get; }
+    IFuzzyMatcher Matcher { get; }           // shared matcher plugins may reuse for pre-filtering
 }
 ```
 
 Results carry their own activation delegate — the plugin decides what Enter
 does. Because `Abstractions` is a shared assembly (see loading), these delegates
 and records cross the load-context boundary as identical types.
+
+The metadata is deliberately rich: `Name`, `Description`, and `Keywords` make
+the plugin **itself** findable, so a query like `calc` or `repo` can route to or
+bias the right plugin without the host hard-coding any knowledge of it. Each
+`PaneResult.SearchText` lets a result be matched on more than its display title
+(e.g. a repo's full path, an app's bundle id, a script's tags).
+
+## Fuzzy Matcher (`Pane.Abstractions`)
+
+A single canonical matcher lives in `Abstractions` and is used everywhere —
+by Core to rank results and by plugins to pre-filter large candidate sets — so
+ranking is consistent across the whole app.
+
+```csharp
+public interface IFuzzyMatcher {
+    // Returns false if `query` is not a subsequence of `target`.
+    // On success, `score` ranks quality and `positions` are the matched indices
+    // in `target` (for highlighting in the UI).
+    bool TryMatch(string query, string target,
+                  out double score, out IReadOnlyList<int> positions);
+}
+```
+
+Algorithm (fzf/Sublime-style subsequence scoring):
+
+- Case-insensitive subsequence match: every query char must appear in `target`
+  in order. No subsequence → no match, result dropped.
+- Score rewards: **consecutive** matched chars, matches at **word boundaries**
+  (after space/`-`/`_`/`/`/`.`) and **camelCase** boundaries, and matches near
+  the **start** of the target. It penalizes gaps and leading unmatched chars.
+- An exact substring (and especially a prefix) beats a scattered subsequence.
+- Empty query matches everything with score `0` (so plugins can show default
+  items ranked by `BaseScore`).
+
+The default implementation is public so plugins can reuse it via
+`IPluginContext.Matcher`. It is pure and fully unit-tested.
 
 ## Plugin Loading (`Pane.Core`)
 
@@ -129,15 +178,32 @@ construct it, call `InitializeAsync`. Core keeps a registry of
 ## Query & Activation Flow
 
 1. Keystroke in the launcher → debounce.
-2. `Core` builds a `PaneQuery` (raw text, optional keyword prefix, terms) and
-   fans it out to all enabled plugins in parallel, each with a `CancellationToken`
-   and a per-plugin timeout.
-3. Each plugin streams scored `PaneResult`s.
-4. The aggregator merges results, applies fuzzy ranking, and sorts by score.
-5. Blazor renders the list; arrow keys navigate; Enter calls the selected
+2. `Core` parses the raw text into a `PaneQuery`. If it starts with a plugin's
+   explicit `Keyword` prefix (e.g. `>`), the query is **scoped** to that plugin;
+   otherwise it goes to all enabled plugins.
+3. **Plugin routing** — for unscoped queries, Core fuzzy-matches the query
+   against each plugin's `Name`/`Keywords`/`Description`. Plugins are still all
+   queried (fan-out), but a metadata match applies a routing bias so the right
+   plugin's results float up (typing `calc` biases the Calculator plugin).
+4. Core fans the query out to the selected plugins in parallel, each with a
+   `CancellationToken` and a per-plugin timeout.
+5. Each plugin streams `PaneResult`s carrying a `BaseScore` and `SearchText`.
+6. **Ranking** — for each result Core runs `IFuzzyMatcher.TryMatch` over
+   `Title` (and `SearchText`), dropping non-matches, and computes a final score:
+
+   ```
+   final = fuzzyScore * W_FUZZY
+         + normalize(BaseScore) * W_BASE
+         + routingBias(plugin) + Priority
+   ```
+
+   The matched positions are kept for highlighting.
+7. Results are merged, sorted by final score, and rendered by Blazor with the
+   matched characters highlighted. Arrow keys navigate; Enter calls the selected
    result's `Activate()`; Escape hides the window.
-6. An optional keyword prefix (e.g. `>` for scripts) scopes the query to a
-   single plugin.
+
+When the query is empty, fuzzy score is `0` and results rank purely by
+`BaseScore`/`Priority`, so each plugin can present sensible defaults.
 
 ## The Four v1 Plugins
 
@@ -201,7 +267,11 @@ without restarting Pane.
 
 Pure logic is unit-tested without UI or native dependencies:
 
-- Fuzzy ranking / query aggregation and merge ordering.
+- The fuzzy matcher: subsequence correctness, boundary/consecutive/prefix
+  scoring order, matched-position output, and empty-query behavior.
+- Plugin routing (metadata match biases the right plugin) and final-score
+  composition.
+- Query aggregation and merge ordering.
 - The ALC plugin loader and `PluginManager` lifecycle (using a fixture
   test-plugin), including the shared-`Abstractions` rule and unload.
 - Script-header parsing (Scripts plugin) and repo enumeration (VSCode plugin).
