@@ -125,22 +125,41 @@ public sealed class PluginManager
         if (p.Instance is not null) { await p.Instance.DisposeAsync(); p.Instance = null; }
         p.Ctx?.Unload(); p.Ctx = null;
         p.State = PluginState.Disabled; p.Error = null;
-        PersistDisabled();
+        Persist();
     }
 
     public async Task EnableAsync(string id)
     {
         if (!_plugins.TryGetValue(id, out var p)) return;
         _disabled.Remove(id);
-        PersistDisabled();
+        Persist();
         await LoadOneAsync(p.DllPath);   // re-instantiate fresh
     }
 
-    void PersistDisabled()
+    void Persist()
     {
         if (_store is null) return;
         var current = _store.Load();
-        _store.Save(current with { DisabledPlugins = new HashSet<string>(_disabled) });
+        _store.Save(current with
+        {
+            DisabledPlugins = new HashSet<string>(_disabled),
+            PluginSettings = _pluginSettings.ToDictionary(
+                e => e.Key, e => new Dictionary<string, string>(e.Value))
+        });
+    }
+
+    public async Task UpdatePluginSettingsAsync(string id, IReadOnlyDictionary<string, string> values)
+    {
+        _pluginSettings[id] = new Dictionary<string, string>(values);
+        Persist();
+
+        // Reload an enabled plugin so InitializeAsync sees the new settings.
+        if (_plugins.TryGetValue(id, out var p) && p.State == PluginState.Enabled)
+        {
+            if (p.Instance is not null) { await p.Instance.DisposeAsync(); p.Instance = null; }
+            p.Ctx?.Unload(); p.Ctx = null;
+            await LoadOneAsync(p.DllPath);
+        }
     }
 
     public async Task<PluginEntry> InstallAsync(string sourcePath)
@@ -175,7 +194,7 @@ public sealed class PluginManager
         if (p.Instance is not null) { await p.Instance.DisposeAsync(); p.Instance = null; }
         p.Ctx?.Unload(); p.Ctx = null;
         _plugins.Remove(id);
-        if (_disabled.Remove(id)) PersistDisabled();
+        if (_disabled.Remove(id)) Persist();
         var dir = Path.GetDirectoryName(p.DllPath)!;
         TryDelete(dir);
     }

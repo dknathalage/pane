@@ -95,6 +95,50 @@ public class PluginManagerTests
         Assert.DoesNotContain("test", store.Load().DisabledPlugins);
     }
 
+    [Fact]
+    public async Task Update_plugin_settings_persists_and_keeps_plugin_active()
+    {
+        var root = NewPluginsRoot();
+        var settingsPath = Path.Combine(Path.GetTempPath(),
+            "pane-test-settings-" + Guid.NewGuid().ToString("N") + ".json");
+        var store = new SettingsStore(settingsPath);
+
+        CopyPlugin(root, "TestPlugin");
+        var mgr = new PluginManager(dataRoot: root, store: store);
+        await mgr.LoadAllAsync(root);
+
+        await mgr.UpdatePluginSettingsAsync("test",
+            new Dictionary<string, string> { ["greeting"] = "hi" });
+
+        // Persisted to disk under the plugin id.
+        Assert.Equal("hi", store.Load().PluginSettings["test"]["greeting"]);
+        // Retrievable via the accessor.
+        Assert.Equal("hi", mgr.GetPluginSettings("test")["greeting"]);
+        // Plugin remains loaded/active after the reload.
+        Assert.Single(mgr.Active());
+    }
+
+    [Fact]
+    public async Task Editing_settings_preserves_disabled_state_in_store()
+    {
+        var root = NewPluginsRoot();
+        var settingsPath = Path.Combine(Path.GetTempPath(),
+            "pane-test-settings-" + Guid.NewGuid().ToString("N") + ".json");
+        var store = new SettingsStore(settingsPath);
+
+        CopyPlugin(root, "TestPlugin");
+        var mgr = new PluginManager(dataRoot: root, store: store);
+        await mgr.LoadAllAsync(root);
+
+        await mgr.DisableAsync("test");
+        await mgr.UpdatePluginSettingsAsync("test",
+            new Dictionary<string, string> { ["k"] = "v" });
+
+        var s = store.Load();
+        Assert.Contains("test", s.DisabledPlugins);      // not clobbered
+        Assert.Equal("v", s.PluginSettings["test"]["k"]);
+    }
+
     static void CopyPluginIntoDir(string pluginsRoot, string fixtureName, string destSubfolder)
     {
         var dst = Path.Combine(pluginsRoot, destSubfolder);
