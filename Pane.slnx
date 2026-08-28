@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Pane.Abstractions/Pane.Abstractions.csproj" />
+    <Project Path="src/Pane.App/Pane.App.csproj" />
     <Project Path="src/Pane.Core/Pane.Core.csproj" />
     <Project Path="src/Pane.Platform/Pane.Platform.csproj" />
     <Project Path="src/Pane.Plugins.Apps/Pane.Plugins.Apps.csproj" />
