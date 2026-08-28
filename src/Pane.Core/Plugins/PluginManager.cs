@@ -66,9 +66,24 @@ public sealed class PluginManager
 
             if (_disabled.Contains(id))
             {
+                // Reject duplicate id from a different folder; keep the first-loaded entry.
+                if (_plugins.TryGetValue(id, out var existingDisabled) && existingDisabled.DllPath != dllPath)
+                {
+                    await plugin.DisposeAsync();
+                    ctx.Unload();
+                    return;
+                }
                 await plugin.DisposeAsync();
                 ctx.Unload();
                 _plugins[id] = new Loaded { Id = id, DllPath = dllPath, Metadata = meta, State = PluginState.Disabled };
+                return;
+            }
+
+            // Reject duplicate id from a different folder; keep the first-loaded entry.
+            if (_plugins.TryGetValue(id, out var existing) && existing.DllPath != dllPath)
+            {
+                await plugin.DisposeAsync();
+                ctx.Unload();
                 return;
             }
 
@@ -150,6 +165,7 @@ public sealed class PluginManager
         if (p.Instance is not null) { await p.Instance.DisposeAsync(); p.Instance = null; }
         p.Ctx?.Unload(); p.Ctx = null;
         _plugins.Remove(id);
+        if (_disabled.Remove(id)) PersistDisabled();
         var dir = Path.GetDirectoryName(p.DllPath)!;
         TryDelete(dir);
     }

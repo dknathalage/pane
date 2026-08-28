@@ -1,4 +1,5 @@
 using Pane.Core.Plugins;
+using Pane.Core.Settings;
 using Xunit;
 
 public class PluginManagerTests
@@ -73,6 +74,50 @@ public class PluginManagerTests
 
         await mgr.EnableAsync("test");
         Assert.Equal(PluginState.Enabled, mgr.List().Single().State);
+        Assert.Single(mgr.Active());
+    }
+
+    [Fact]
+    public async Task Uninstall_clears_disabled_state_from_settings()
+    {
+        var root = NewPluginsRoot();
+        var settingsPath = Path.Combine(Path.GetTempPath(), "pane-test-settings-" + Guid.NewGuid().ToString("N") + ".json");
+        var store = new SettingsStore(settingsPath);
+
+        CopyPlugin(root, "TestPlugin");
+        var mgr = new PluginManager(dataRoot: root, store: store);
+        await mgr.LoadAllAsync(root);
+
+        await mgr.DisableAsync("test");
+        Assert.Contains("test", store.Load().DisabledPlugins);
+
+        await mgr.UninstallAsync("test");
+        Assert.DoesNotContain("test", store.Load().DisabledPlugins);
+    }
+
+    static void CopyPluginIntoDir(string pluginsRoot, string fixtureName, string destSubfolder)
+    {
+        var dst = Path.Combine(pluginsRoot, destSubfolder);
+        Directory.CreateDirectory(dst);
+        foreach (var f in Directory.GetFiles(FixtureDir(fixtureName)))
+            File.Copy(f, Path.Combine(dst, Path.GetFileName(f)), true);
+    }
+
+    [Fact]
+    public async Task Duplicate_id_does_not_corrupt_first_loaded_plugin()
+    {
+        var root = NewPluginsRoot();
+        // Copy the same TestPlugin fixture into two different subfolders.
+        CopyPluginIntoDir(root, "TestPlugin", "a");
+        CopyPluginIntoDir(root, "TestPlugin", "b");
+
+        var mgr = new PluginManager(dataRoot: root);
+        await mgr.LoadAllAsync(root); // must not throw
+
+        var list = mgr.List();
+        Assert.Single(list);
+        Assert.Equal("test", list[0].Metadata.Id);
+        Assert.Equal(PluginState.Enabled, list[0].State);
         Assert.Single(mgr.Active());
     }
 }
