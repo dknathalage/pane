@@ -7,6 +7,7 @@
     <Project Path="src/Pane.Plugins.Calculator/Pane.Plugins.Calculator.csproj" />
     <Project Path="src/Pane.Plugins.Scripts/Pane.Plugins.Scripts.csproj" />
     <Project Path="src/Pane.Plugins.VSCode/Pane.Plugins.VSCode.csproj" />
+    <Project Path="src/Pane.Ui/Pane.Ui.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Pane.Abstractions.Tests/Pane.Abstractions.Tests.csproj" />

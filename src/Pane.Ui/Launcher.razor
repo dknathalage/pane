@@ -1,0 +1,62 @@
+@inject PluginManager Manager
+@inject QueryDispatcher Dispatcher
+
+<div class="pane-root">
+    <input class="pane-search"
+           value="@_text"
+           @oninput="OnInput"
+           @onkeydown="OnKeyDown"
+           placeholder="Search…"
+           autofocus />
+    <ResultList Results="_results" Selected="_selected" />
+</div>
+
+@code {
+    string _text = "";
+    int _selected;
+    IReadOnlyList<ScoredResult> _results = Array.Empty<ScoredResult>();
+    CancellationTokenSource? _cts;
+
+    async Task OnInput(ChangeEventArgs e)
+    {
+        _text = e.Value?.ToString() ?? "";
+        await RunQuery();
+    }
+
+    async Task RunQuery()
+    {
+        _cts?.Cancel();
+        _cts = new CancellationTokenSource();
+        var token = _cts.Token;
+
+        var plugins = Manager.List()
+            .Where(e => e.State == PluginState.Enabled && e.Instance is not null)
+            .Select(e => (e.Metadata, e.Instance!))
+            .ToList();
+
+        try
+        {
+            _results = await Dispatcher.DispatchAsync(_text, plugins, token);
+            _selected = 0;
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                _selected = Math.Min(_selected + 1, _results.Count - 1);
+                break;
+            case "ArrowUp":
+                _selected = Math.Max(_selected - 1, 0);
+                break;
+            case "Enter":
+                if (_selected >= 0 && _selected < _results.Count)
+                    await _results[_selected].Result.Activate();
+                break;
+        }
+    }
+}
