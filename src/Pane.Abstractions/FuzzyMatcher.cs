@@ -36,7 +36,7 @@ public sealed class FuzzyMatcher : IFuzzyMatcher
             double s = BaseHit;
             if (ti == 0) s += StartBonus;
             if (ti == prevMatch + 1) s += ConsecutiveBonus;
-            if ((ti - start) == 0 && IsBoundary(target, ti)) s += BoundaryBonus;
+            if (IsBoundary(target, ti)) s += BoundaryBonus;
             s -= (ti - start) * GapPenalty;              // penalize skipped chars
 
             total += s;
