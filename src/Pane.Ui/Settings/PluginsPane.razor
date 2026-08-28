@@ -1,0 +1,51 @@
+@using Pane.Core.Plugins
+@using Pane.Core
+@inject PluginManager Manager
+@inject IFilePicker FilePicker
+
+<div class="plugins-pane">
+    @foreach (var p in Manager.List())
+    {
+        <div class="plugin-row">
+            <span class="icon">@p.Metadata.Icon</span>
+            <span class="name">@p.Metadata.Name <small>@p.Metadata.Version</small></span>
+            <span class="badge @p.State.ToString().ToLower()">
+                @(p.State == PluginState.Errored ? $"Errored — {p.Error}" : p.State.ToString())
+            </span>
+            @if (p.State == PluginState.Enabled)
+            {
+                <button @onclick="() => Toggle(p.Metadata.Id, false)">Disable</button>
+            }
+            else if (p.State == PluginState.Disabled)
+            {
+                <button @onclick="() => Toggle(p.Metadata.Id, true)">Enable</button>
+            }
+            <button @onclick="() => Uninstall(p.Metadata.Id)">Uninstall</button>
+        </div>
+    }
+    <button @onclick="Install">Install plugin…</button>
+</div>
+
+@code {
+    async Task Toggle(string id, bool enable)
+    {
+        if (enable) await Manager.EnableAsync(id); else await Manager.DisableAsync(id);
+        StateHasChanged();
+    }
+
+    async Task Uninstall(string id)
+    {
+        await Manager.UninstallAsync(id);
+        StateHasChanged();
+    }
+
+    async Task Install()
+    {
+        var path = await FilePicker.PickFolderAsync();
+        if (path is not null)
+        {
+            await Manager.InstallAsync(path);
+            StateHasChanged();
+        }
+    }
+}
