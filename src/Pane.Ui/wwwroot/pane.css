@@ -1,0 +1,70 @@
+/* Pane launcher styles */
+.pane-root {
+    display: flex;
+    flex-direction: column;
+    font-family: system-ui, sans-serif;
+}
+
+.pane-search {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.pane-search:focus {
+    border-color: #007acc;
+    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.pane-results {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 4px;
+}
+
+.pane-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.pane-item.sel {
+    background-color: #007acc;
+    color: #fff;
+}
+
+.pane-item .icon {
+    flex-shrink: 0;
+    font-size: 18px;
+}
+
+.pane-item .title {
+    font-weight: 500;
+    flex: 1;
+}
+
+.pane-item .subtitle {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.pane-item mark {
+    background: rgba(255, 220, 0, 0.6);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+.pane-item.sel mark {
+    background: rgba(255, 220, 0, 0.4);
+}

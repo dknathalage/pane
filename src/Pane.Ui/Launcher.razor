@@ -1,0 +1,90 @@
+@inject PluginManager Manager
+@inject QueryDispatcher Dispatcher
+
+<div class="pane-root" @onkeydown="OnKeyDown" tabindex="-1">
+    @if (_showSettings)
+    {
+        <SettingsPage />
+    }
+    else
+    {
+        <input class="pane-search"
+               value="@_text"
+               @oninput="OnInput"
+               placeholder="Search…"
+               autofocus />
+        <ResultList Results="_results" Selected="_selected" />
+    }
+</div>
+
+@code {
+    string _text = "";
+    int _selected;
+    bool _showSettings;
+    IReadOnlyList<ScoredResult> _results = Array.Empty<ScoredResult>();
+    CancellationTokenSource? _cts;
+
+    async Task OnInput(ChangeEventArgs e)
+    {
+        _text = e.Value?.ToString() ?? "";
+
+        if (_text.Trim().Equals("settings", StringComparison.OrdinalIgnoreCase))
+        {
+            _showSettings = true;
+            _text = "";
+            _results = Array.Empty<ScoredResult>();
+            return;
+        }
+
+        await RunQuery();
+    }
+
+    async Task RunQuery()
+    {
+        var old = _cts;
+        _cts = new CancellationTokenSource();
+        var token = _cts.Token;
+        old?.Cancel();
+        old?.Dispose();
+
+        var plugins = Manager.List()
+            .Where(e => e.State == PluginState.Enabled && e.Instance is not null)
+            .Select(e => (e.Metadata, e.Instance!))
+            .ToList();
+
+        try
+        {
+            _results = await Dispatcher.DispatchAsync(_text, plugins, token);
+            _selected = 0;
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Escape":
+                if (_showSettings)
+                {
+                    _showSettings = false;
+                    _text = "";
+                    _results = Array.Empty<ScoredResult>();
+                }
+                break;
+            case "ArrowDown":
+                if (!_showSettings && _results.Count > 0)
+                    _selected = Math.Min(_selected + 1, _results.Count - 1);
+                break;
+            case "ArrowUp":
+                if (!_showSettings && _results.Count > 0)
+                    _selected = Math.Max(_selected - 1, 0);
+                break;
+            case "Enter":
+                if (!_showSettings && _selected >= 0 && _selected < _results.Count)
+                    await _results[_selected].Result.Activate();
+                break;
+        }
+    }
+}
