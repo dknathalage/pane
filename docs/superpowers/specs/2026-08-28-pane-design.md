@@ -71,10 +71,12 @@ Each plugin builds into its own folder under a runtime `plugins/` directory
 ## Plugin Contract (`Pane.Abstractions`)
 
 ```csharp
-public interface IPlugin {
+public interface IPlugin : IAsyncDisposable {
     PluginMetadata Metadata { get; }                        // searchable descriptor of the plugin
     Task InitializeAsync(IPluginContext ctx);               // logger, settings, paths
     IAsyncEnumerable<PaneResult> QueryAsync(PaneQuery q, CancellationToken ct);
+    // DisposeAsync (from IAsyncDisposable) is called on disable/uninstall,
+    // before the load context is unloaded, so the plugin can release resources.
 }
 
 public record PluginMetadata(
@@ -114,6 +116,36 @@ the plugin **itself** findable, so a query like `calc` or `repo` can route to or
 bias the right plugin without the host hard-coding any knowledge of it. Each
 `PaneResult.SearchText` lets a result be matched on more than its display title
 (e.g. a repo's full path, an app's bundle id, a script's tags).
+
+## Plugin Integration Surface
+
+A plugin author touches exactly one assembly — `Pane.Abstractions` — and nothing
+else in Pane. The complete surface:
+
+- **References:** `Pane.Abstractions` only (not copied locally — it is the shared
+  contract). `Pane.Core`, `Pane.App`, and `Pane.Ui` are not visible.
+- **Implements:** `IPlugin` (one public non-abstract type per DLL, parameterless
+  constructor). No other required types.
+- **Receives (inbound):** an `IPluginContext` at `InitializeAsync` (logger,
+  per-plugin `DataDirectory`, `Settings`, shared `Matcher`); a `PaneQuery` and a
+  `CancellationToken` per keystroke.
+- **Returns (outbound):** a stream of `PaneResult`. The only action surface is
+  each result's `Activate: Func<Task>` delegate (Enter invokes it); the plugin
+  does whatever it wants inside — launch a process, copy to clipboard, open a
+  folder. There is no separate command/action API.
+- **Packaging:** builds to `plugins/<PluginName>/` (entry DLL + private deps).
+  No manifest file — the code-returned `PluginMetadata` is the manifest.
+- **Lifecycle:** `construct → InitializeAsync (once) → QueryAsync (many,
+  concurrency-safe) → DisposeAsync (on disable/uninstall, before ALC unload)`.
+  For clean unload, a plugin must hold no static references back into itself and
+  should release resources in `DisposeAsync`.
+- **Explicitly NOT in the surface:** no Blazor/UI access (plugins return data,
+  they do not render), no access to other plugins, no host internals, no global
+  process/window control. This keeps plugins simple and the host safe from a
+  misbehaving one (see Failure Handling).
+
+A short "authoring a plugin" guide will accompany the code, but the above is the
+whole contract.
 
 ## Fuzzy Matcher (`Pane.Abstractions`)
 
@@ -173,7 +205,9 @@ plugin get distinct `IPlugin` types and the cast fails.
 
 Instantiation: load the entry DLL, reflect for a public non-abstract `IPlugin`,
 construct it, call `InitializeAsync`. Core keeps a registry of
-`(IPlugin instance, PluginLoadContext alc, PluginStatus status)`.
+`(IPlugin instance, PluginLoadContext alc, PluginStatus status)`. On disable or
+uninstall, Core calls the plugin's `DisposeAsync`, drops its references, then
+calls `alc.Unload()`.
 
 ## Query & Activation Flow
 
