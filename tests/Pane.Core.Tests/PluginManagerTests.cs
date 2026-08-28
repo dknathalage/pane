@@ -22,7 +22,7 @@ public class PluginManagerTests
         return root;
     }
 
-    static void CopyPlugin(string pluginsRoot, string fixtureName, string dllName)
+    static void CopyPlugin(string pluginsRoot, string fixtureName)
     {
         var dst = Path.Combine(pluginsRoot, fixtureName);
         Directory.CreateDirectory(dst);
@@ -34,7 +34,7 @@ public class PluginManagerTests
     public async Task Loads_enabled_plugin_and_lists_it()
     {
         var root = NewPluginsRoot();
-        CopyPlugin(root, "TestPlugin", "TestPlugin.dll");
+        CopyPlugin(root, "TestPlugin");
         var mgr = new PluginManager(dataRoot: root);
 
         await mgr.LoadAllAsync(root);
@@ -48,7 +48,7 @@ public class PluginManagerTests
     public async Task Faulty_plugin_is_marked_errored_not_thrown()
     {
         var root = NewPluginsRoot();
-        CopyPlugin(root, "ThrowingPlugin", "ThrowingPlugin.dll");
+        CopyPlugin(root, "ThrowingPlugin");
         var mgr = new PluginManager(dataRoot: root);
 
         await mgr.LoadAllAsync(root);   // must not throw
@@ -63,7 +63,7 @@ public class PluginManagerTests
     public async Task Disable_then_enable_toggles_state()
     {
         var root = NewPluginsRoot();
-        CopyPlugin(root, "TestPlugin", "TestPlugin.dll");
+        CopyPlugin(root, "TestPlugin");
         var mgr = new PluginManager(dataRoot: root);
         await mgr.LoadAllAsync(root);
 

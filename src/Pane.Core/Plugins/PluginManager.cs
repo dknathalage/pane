@@ -35,10 +35,9 @@ public sealed class PluginManager
         if (!Directory.Exists(pluginsRoot)) return;
         foreach (var dir in Directory.GetDirectories(pluginsRoot))
         {
-            var dll = Directory.GetFiles(dir, "*.dll")
-                .FirstOrDefault(f => Path.GetFileNameWithoutExtension(f).StartsWith("Pane.Plugins")
-                                     || Directory.GetFiles(dir, "*.dll").Length == 1);
-            dll ??= Directory.GetFiles(dir, "*.dll").FirstOrDefault();
+            var dlls = Directory.GetFiles(dir, "*.dll");
+            var dll = dlls.FirstOrDefault(f => Path.GetFileNameWithoutExtension(f).StartsWith("Pane.Plugins"))
+                      ?? dlls.FirstOrDefault();
             if (dll is null) continue;
             await LoadOneAsync(dll);
         }
