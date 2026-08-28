@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Pane.Abstractions/Pane.Abstractions.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Pane.Abstractions.Tests/Pane.Abstractions.Tests.csproj" />
+  </Folder>
+</Solution>
