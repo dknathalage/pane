@@ -1,5 +1,15 @@
 namespace Pane.Abstractions;
 
+public enum PluginSettingType { Text, Boolean, Number, Choice }
+
+public record PluginSettingSpec(
+    string Key,
+    string Label,
+    PluginSettingType Type,
+    string? Default = null,
+    string? Description = null,
+    IReadOnlyList<string>? Choices = null);
+
 public record PluginMetadata(
     string Id,
     string Name,
@@ -8,7 +18,8 @@ public record PluginMetadata(
     string Description,
     IReadOnlyList<string> Keywords,
     string? Keyword = null,
-    int Priority = 0);
+    int Priority = 0,
+    IReadOnlyList<PluginSettingSpec>? Settings = null);
 
 public record PaneQuery(string RawText, string? Keyword, string Terms);
 
