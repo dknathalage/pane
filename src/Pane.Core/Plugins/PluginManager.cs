@@ -23,6 +23,7 @@ public sealed class PluginManager
     readonly Dictionary<string, Loaded> _plugins = new();
     readonly HashSet<string> _disabled = new();     // ids the user disabled
     readonly SettingsStore? _store;
+    readonly Dictionary<string, Dictionary<string, string>> _pluginSettings = new();
 
     public PluginManager(string dataRoot, SettingsStore? store = null)
     {
@@ -32,6 +33,8 @@ public sealed class PluginManager
         {
             foreach (var id in _store.Load().DisabledPlugins)
                 _disabled.Add(id);
+            foreach (var kv in _store.Load().PluginSettings)
+                _pluginSettings[kv.Key] = new Dictionary<string, string>(kv.Value);
         }
     }
 
@@ -40,6 +43,12 @@ public sealed class PluginManager
 
     public IEnumerable<IPlugin> Active() =>
         _plugins.Values.Where(p => p.State == PluginState.Enabled && p.Instance is not null).Select(p => p.Instance!);
+
+    public IReadOnlyDictionary<string, string> GetPluginSettings(string id)
+    {
+        var meta = _plugins.TryGetValue(id, out var p) ? p.Metadata : null;
+        return PluginSettingsMerge.Merge(meta?.Settings, _pluginSettings.GetValueOrDefault(id));
+    }
 
     public async Task LoadAllAsync(string pluginsRoot)
     {
@@ -87,8 +96,9 @@ public sealed class PluginManager
                 return;
             }
 
-            var pctx = new PluginContext(id, Path.Combine(_dataRoot, "data", id),
-                new Dictionary<string, string>(), _matcher);
+            var settings = PluginSettingsMerge.Merge(
+                meta.Settings, _pluginSettings.GetValueOrDefault(id));
+            var pctx = new PluginContext(id, Path.Combine(_dataRoot, "data", id), settings, _matcher);
             await plugin.InitializeAsync(pctx);
             _plugins[id] = new Loaded
             {
