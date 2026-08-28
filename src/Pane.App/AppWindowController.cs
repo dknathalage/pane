@@ -16,12 +16,15 @@ internal sealed class AppWindowController : IWindowController
     private volatile bool _isVisible;
     private int _savedLeft, _savedTop;
 
-    /// <summary>Attach the real window once it exists (post-Build).</summary>
+    /// <summary>
+    /// Attach the real window once it exists (post-Build, pre-Run). Do NOT move
+    /// the window here — the native window isn't running yet and SetLeft/SetTop
+    /// would crash. Start-hidden is handled via the Minimized property in Program.
+    /// </summary>
     public void Attach(PhotinoWindow window, bool startVisible)
     {
         _window = window;
         _isVisible = startVisible;
-        if (!startVisible) Hide();
     }
 
     public bool IsVisible => _isVisible;

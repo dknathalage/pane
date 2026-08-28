@@ -65,8 +65,10 @@ app.MainWindow
 app.MainWindow.Centered = true;   // property, not a method
 
 // When launched at login (--startup), start hidden so it doesn't flash a
-// window every boot; the user summons it with the global hotkey.
+// window every boot; the user summons it with the global hotkey. Minimized is
+// a safe pre-Run property (unlike SetLeft/SetTop, which crash before Run).
 var startHidden = args.Contains("--startup");
+if (startHidden) app.MainWindow.Minimized = true;
 
 // Attach the DI-registered controller to the real window now that it exists.
 var windowController = app.Services.GetRequiredService<AppWindowController>();
