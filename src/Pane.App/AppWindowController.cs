@@ -15,6 +15,8 @@ namespace Pane.App;
 /// </summary>
 internal sealed class AppWindowController : IWindowController
 {
+    const int OffScreen = -32000;
+
     private PhotinoWindow? _window;
     private volatile bool _isVisible;
 
@@ -27,11 +29,13 @@ internal sealed class AppWindowController : IWindowController
 
     public bool IsVisible => _isVisible;
 
+    // Callers are all on the main thread (Carbon hotkey / menu-bar handlers,
+    // Blazor Escape, or marshalled via MainWindow.Invoke), so these are safe.
     public void Show()
     {
         if (_window is null) return;
         _isVisible = true;
-        _window.SetMinimized(false);
+        _window.Centered = true;    // re-centre on screen
         _window.SetTopMost(true);   // float above and take front
     }
 
@@ -39,7 +43,9 @@ internal sealed class AppWindowController : IWindowController
     {
         if (_window is null) return;
         _isVisible = false;
-        _window.SetMinimized(true);
+        // Move off-screen so it vanishes instantly (no dock minimise).
+        _window.SetLeft(OffScreen);
+        _window.SetTop(OffScreen);
     }
 
     public void ToggleVisible()

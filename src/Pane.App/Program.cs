@@ -80,17 +80,27 @@ windowController.Attach(app.MainWindow, startVisible: true);
 var pluginManager = app.Services.GetRequiredService<PluginManager>();
 await pluginManager.LoadAllAsync(pluginsRoot);
 
-// ── Global hotkey ──────────────────────────────────────────────────────────
+// ── Global hotkey + menu bar ───────────────────────────────────────────────
 var settings = settingsStore.Load();
-var hotkey   = app.Services.GetRequiredService<IGlobalHotkey>();
+IGlobalHotkey? hotkey = null;
 
-hotkey.Register(settings.Hotkey);
-hotkey.Pressed += () =>
+if (OperatingSystem.IsMacOS())
 {
-    // The hotkey fires on SharpHook's background thread. Photino window calls
-    // MUST run on the main thread (they crash otherwise), so marshal via Invoke.
-    app.MainWindow.Invoke(() => windowController.ToggleVisible());
-};
+    // Carbon hotkey needs NO Accessibility permission (unlike a keyboard tap),
+    // and a menu-bar item as a click-to-open fallback. Both handlers fire on
+    // the main thread, so window calls are safe without marshalling.
+    if (!MacGlobalHotkey.Register(settings.Hotkey, () => windowController.ToggleVisible()))
+        Console.Error.WriteLine($"pane: could not register hotkey '{settings.Hotkey}'");
+    try { MacStatusBar.Setup("Pane", () => windowController.ToggleVisible()); }
+    catch (Exception ex) { Console.Error.WriteLine("pane: menu bar setup failed: " + ex.Message); }
+}
+else
+{
+    // Other platforms: SharpHook keyboard hook, marshalled to the UI thread.
+    hotkey = app.Services.GetRequiredService<IGlobalHotkey>();
+    hotkey.Register(settings.Hotkey);
+    hotkey.Pressed += () => app.MainWindow.Invoke(() => windowController.ToggleVisible());
+}
 
 // Background start: once the window is up, dismiss it so Pane sits quietly
 // until the hotkey. Runs on a background thread after Run() begins — the
@@ -114,6 +124,6 @@ try
 }
 finally
 {
-    // Cleanup: dispose hotkey (stops the SharpHook background thread).
-    hotkey.Dispose();
+    // Cleanup: dispose the SharpHook hotkey if we used one (non-macOS).
+    hotkey?.Dispose();
 }
