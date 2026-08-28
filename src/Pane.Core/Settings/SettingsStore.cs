@@ -2,7 +2,10 @@ using System.Text.Json;
 
 namespace Pane.Core.Settings;
 
-public record PaneSettings(HashSet<string> DisabledPlugins, string Hotkey);
+public record PaneSettings(
+    HashSet<string> DisabledPlugins,
+    string Hotkey,
+    Dictionary<string, Dictionary<string, string>> PluginSettings);
 
 public sealed class SettingsStore
 {
@@ -12,13 +15,19 @@ public sealed class SettingsStore
 
     public PaneSettings Load()
     {
-        if (!File.Exists(_path)) return new PaneSettings(new(), DefaultHotkey);
+        if (!File.Exists(_path)) return new PaneSettings(new(), DefaultHotkey, new());
         try
         {
             var s = JsonSerializer.Deserialize<PaneSettings>(File.ReadAllText(_path));
-            return s ?? new PaneSettings(new(), DefaultHotkey);
+            if (s is null) return new PaneSettings(new(), DefaultHotkey, new());
+            return s with
+            {
+                DisabledPlugins = s.DisabledPlugins ?? new(),
+                Hotkey = string.IsNullOrEmpty(s.Hotkey) ? DefaultHotkey : s.Hotkey,
+                PluginSettings = s.PluginSettings ?? new()
+            };
         }
-        catch { return new PaneSettings(new(), DefaultHotkey); }
+        catch { return new PaneSettings(new(), DefaultHotkey, new()); }
     }
 
     public void Save(PaneSettings s)

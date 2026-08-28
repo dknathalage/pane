@@ -129,8 +129,8 @@ public sealed class PluginManager
     void PersistDisabled()
     {
         if (_store is null) return;
-        var hotkey = _store.Load().Hotkey;
-        _store.Save(new PaneSettings(new HashSet<string>(_disabled), hotkey));
+        var current = _store.Load();
+        _store.Save(current with { DisabledPlugins = new HashSet<string>(_disabled) });
     }
 
     public async Task<PluginEntry> InstallAsync(string sourcePath)
