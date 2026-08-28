@@ -30,7 +30,7 @@ public class FuzzyMatcherTests
     [Fact]
     public void Consecutive_beats_gapped()
     {
-        _m.TryMatch("ap", "aP", out var consecutive, out _);
+        _m.TryMatch("ap", "apple", out var consecutive, out _);
         _m.TryMatch("ap", "a-b-c-p", out var gapped, out _);
         Assert.True(consecutive > gapped);
     }

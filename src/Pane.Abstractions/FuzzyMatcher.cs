@@ -11,7 +11,7 @@ public sealed class FuzzyMatcher : IFuzzyMatcher
     const double ConsecutiveBonus = 3.0;
     const double BoundaryBonus = 4.0;
     const double StartBonus = 2.0;
-    const double GapPenalty = 0.2;
+    const double GapPenalty = 0.3;
 
     public bool TryMatch(string query, string target, out double score, out IReadOnlyList<int> positions)
     {
