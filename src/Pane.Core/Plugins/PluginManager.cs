@@ -1,6 +1,7 @@
 using Pane.Abstractions;
 using Pane.Core.Context;
 using Pane.Core.Loading;
+using Pane.Core.Settings;
 
 namespace Pane.Core.Plugins;
 
@@ -20,9 +21,19 @@ public sealed class PluginManager
     readonly string _dataRoot;
     readonly IFuzzyMatcher _matcher = new FuzzyMatcher();
     readonly Dictionary<string, Loaded> _plugins = new();
-    readonly HashSet<string> _disabled = new();     // ids the user disabled (persisted by SettingsStore later)
+    readonly HashSet<string> _disabled = new();     // ids the user disabled
+    readonly SettingsStore? _store;
 
-    public PluginManager(string dataRoot) => _dataRoot = dataRoot;
+    public PluginManager(string dataRoot, SettingsStore? store = null)
+    {
+        _dataRoot = dataRoot;
+        _store = store;
+        if (_store is not null)
+        {
+            foreach (var id in _store.Load().DisabledPlugins)
+                _disabled.Add(id);
+        }
+    }
 
     public IReadOnlyList<PluginEntry> List() =>
         _plugins.Values.Select(p => new PluginEntry(p.Metadata, p.State, p.Error, p.Instance)).ToList();
@@ -89,13 +100,22 @@ public sealed class PluginManager
         if (p.Instance is not null) { await p.Instance.DisposeAsync(); p.Instance = null; }
         p.Ctx?.Unload(); p.Ctx = null;
         p.State = PluginState.Disabled; p.Error = null;
+        PersistDisabled();
     }
 
     public async Task EnableAsync(string id)
     {
         if (!_plugins.TryGetValue(id, out var p)) return;
         _disabled.Remove(id);
+        PersistDisabled();
         await LoadOneAsync(p.DllPath);   // re-instantiate fresh
+    }
+
+    void PersistDisabled()
+    {
+        if (_store is null) return;
+        var hotkey = _store.Load().Hotkey;
+        _store.Save(new PaneSettings(new HashSet<string>(_disabled), hotkey));
     }
 
     public async Task<PluginEntry> InstallAsync(string sourcePath)
