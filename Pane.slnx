@@ -2,10 +2,18 @@
   <Folder Name="/src/">
     <Project Path="src/Pane.Abstractions/Pane.Abstractions.csproj" />
     <Project Path="src/Pane.Core/Pane.Core.csproj" />
+    <Project Path="src/Pane.Plugins.Apps/Pane.Plugins.Apps.csproj" />
+    <Project Path="src/Pane.Plugins.Calculator/Pane.Plugins.Calculator.csproj" />
+    <Project Path="src/Pane.Plugins.Scripts/Pane.Plugins.Scripts.csproj" />
+    <Project Path="src/Pane.Plugins.VSCode/Pane.Plugins.VSCode.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Pane.Abstractions.Tests/Pane.Abstractions.Tests.csproj" />
     <Project Path="tests/Pane.Core.Tests/Pane.Core.Tests.csproj" />
+    <Project Path="tests/Pane.Plugins.Apps.Tests/Pane.Plugins.Apps.Tests.csproj" />
+    <Project Path="tests/Pane.Plugins.Calculator.Tests/Pane.Plugins.Calculator.Tests.csproj" />
+    <Project Path="tests/Pane.Plugins.Scripts.Tests/Pane.Plugins.Scripts.Tests.csproj" />
+    <Project Path="tests/Pane.Plugins.VSCode.Tests/Pane.Plugins.VSCode.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/Pane.Core.Tests/" />
   <Folder Name="/tests/Pane.Core.Tests/Fixtures/">
