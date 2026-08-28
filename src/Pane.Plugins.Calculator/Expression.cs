@@ -39,7 +39,11 @@ public static class Expression
         return tokens;
     }
 
-    static int Prec(string op) => op is "+" or "-" ? 1 : 2;
+    // Precedence: binary +/- = 1, binary */÷ = 2, unary u-/u+ = 3
+    static int Prec(string op) => op is "u-" or "u+" ? 3 : op is "+" or "-" ? 1 : 2;
+
+    // Unary ops are right-associative; binary ops are left-associative.
+    static bool IsRightAssoc(string op) => op is "u-" or "u+";
 
     static List<string> ToRpn(List<string> tokens)
     {
@@ -58,12 +62,15 @@ public static class Expression
             }
             else // operator
             {
-                // unary minus/plus: a leading - or - after ( or another operator
+                // unary minus/plus: a leading - or + or after ( or another operator
                 bool unary = t is "-" or "+" &&
                     (idx == 0 || tokens[idx - 1] is "(" or "+" or "-" or "*" or "/");
-                if (unary) { output.Add("0"); }
-                while (ops.Count > 0 && ops.Peek() != "(" && Prec(ops.Peek()) >= Prec(t)) output.Add(ops.Pop());
-                ops.Push(t);
+                string op = unary ? (t == "-" ? "u-" : "u+") : t;
+                // Drain: for left-assoc drain on >= prec; for right-assoc drain only on strictly >
+                while (ops.Count > 0 && ops.Peek() != "(" &&
+                    (Prec(ops.Peek()) > Prec(op) || (Prec(ops.Peek()) == Prec(op) && !IsRightAssoc(op))))
+                    output.Add(ops.Pop());
+                ops.Push(op);
             }
         }
         while (ops.Count > 0)
@@ -80,7 +87,9 @@ public static class Expression
         var st = new Stack<double>();
         foreach (var t in rpn)
         {
-            if (double.TryParse(t, NumberStyles.Any, CultureInfo.InvariantCulture, out var num)) st.Push(num);
+            if (t == "u-") { if (st.Count < 1) throw new FormatException("insufficient operands"); st.Push(-st.Pop()); }
+            else if (t == "u+") { if (st.Count < 1) throw new FormatException("insufficient operands"); /* no-op */ }
+            else if (double.TryParse(t, NumberStyles.Any, CultureInfo.InvariantCulture, out var num)) st.Push(num);
             else
             {
                 if (st.Count < 2) throw new FormatException("insufficient operands");

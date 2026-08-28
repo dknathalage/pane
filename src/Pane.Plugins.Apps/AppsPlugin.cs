@@ -33,12 +33,22 @@ public sealed class AppsPlugin : IPlugin
 
     static Task Launch(string target)
     {
+        ProcessStartInfo psi;
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            Process.Start(new ProcessStartInfo("open", $"\"{target}\"") { UseShellExecute = false });
+        {
+            psi = new ProcessStartInfo("open") { UseShellExecute = false };
+            psi.ArgumentList.Add(target);
+        }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+        {
+            psi = new ProcessStartInfo(target) { UseShellExecute = true };
+        }
         else
-            Process.Start(new ProcessStartInfo("xdg-open", $"\"{target}\"") { UseShellExecute = false });
+        {
+            psi = new ProcessStartInfo("xdg-open") { UseShellExecute = false };
+            psi.ArgumentList.Add(target);
+        }
+        using var p = Process.Start(psi);
         return Task.CompletedTask;
     }
 

@@ -35,7 +35,9 @@ public sealed class VSCodePlugin : IPlugin
     static Task Open(string path)
     {
         var code = CodePaths.FirstOrDefault(File.Exists) ?? "code";
-        Process.Start(new ProcessStartInfo(code, $"\"{path}\"") { UseShellExecute = false });
+        var psi = new ProcessStartInfo(code) { UseShellExecute = false };
+        psi.ArgumentList.Add(path);
+        using var p = Process.Start(psi);
         return Task.CompletedTask;
     }
 

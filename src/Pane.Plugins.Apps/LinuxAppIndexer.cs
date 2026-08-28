@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace Pane.Plugins.Apps;
 
 public sealed class LinuxAppIndexer : IAppIndexer
@@ -31,7 +33,10 @@ public sealed class LinuxAppIndexer : IAppIndexer
                 }
 
                 if (name is not null && exec is not null)
-                    yield return new AppEntry(name, exec);
+                {
+                    var launchTarget = Regex.Replace(exec, "%[a-zA-Z]", "").Trim();
+                    yield return new AppEntry(name, launchTarget);
+                }
             }
         }
     }

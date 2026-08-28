@@ -40,7 +40,9 @@ public sealed class ScriptsPlugin : IPlugin
 
     static Task RunScript(string path)
     {
-        Process.Start(new ProcessStartInfo("/bin/bash", $"\"{path}\"") { UseShellExecute = false });
+        var psi = new ProcessStartInfo("/bin/bash") { UseShellExecute = false };
+        psi.ArgumentList.Add(path);
+        using var p = Process.Start(psi);
         return Task.CompletedTask;
     }
 
