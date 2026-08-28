@@ -16,7 +16,10 @@ Directory.CreateDirectory(dataRoot);
 Directory.CreateDirectory(pluginsRoot);
 
 // ── Builder ────────────────────────────────────────────────────────────────
-var builder = PhotinoBlazorAppBuilder.CreateDefault(args);
+// Read our own flags first; Photino's CreateDefault crashes on ANY unknown
+// CLI arg, so hand it an empty array.
+var startHidden = args.Contains("--startup");
+var builder = PhotinoBlazorAppBuilder.CreateDefault(Array.Empty<string>());
 
 // ── DI registrations ───────────────────────────────────────────────────────
 builder.Services.AddSingleton<IFuzzyMatcher, FuzzyMatcher>();
@@ -67,7 +70,6 @@ app.MainWindow.Centered = true;   // property, not a method
 // When launched at login (--startup) we want it to run in the background.
 // Photino crashes if the window is configured hidden BEFORE Run, so we start
 // visible and dismiss it just after the window comes up (see below).
-var startHidden = args.Contains("--startup");
 
 // Attach the DI-registered controller to the real window now that it exists.
 var windowController = app.Services.GetRequiredService<AppWindowController>();
@@ -85,9 +87,9 @@ var hotkey   = app.Services.GetRequiredService<IGlobalHotkey>();
 hotkey.Register(settings.Hotkey);
 hotkey.Pressed += () =>
 {
-    // Photino's native message loop owns the window; SetMinimized() is thread-safe
-    // per Photino.NET docs (it posts to the native queue). No marshal needed.
-    windowController.ToggleVisible();
+    // The hotkey fires on SharpHook's background thread. Photino window calls
+    // MUST run on the main thread (they crash otherwise), so marshal via Invoke.
+    app.MainWindow.Invoke(() => windowController.ToggleVisible());
 };
 
 // Background start: once the window is up, dismiss it so Pane sits quietly
@@ -98,7 +100,8 @@ if (startHidden)
     _ = Task.Run(async () =>
     {
         await Task.Delay(1500);
-        try { windowController.Hide(); } catch { /* best-effort */ }
+        // Marshal to the main thread — window calls crash off-thread.
+        try { app.MainWindow.Invoke(() => windowController.Hide()); } catch { /* best-effort */ }
     });
 }
 

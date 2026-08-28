@@ -11,9 +11,13 @@ PLUGINS_DEST="$HOME/.config/pane/plugins"
 LABEL="com.pane.launcher"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 
-echo "==> Publishing Pane.App (Release) → $APPDIR"
+echo "==> Publishing Pane.App (Release, self-contained) → $APPDIR"
+# Self-contained bundles the .NET runtime so the LaunchAgent (which has a
+# minimal PATH and can't find Homebrew's dotnet) runs standalone.
+RID="osx-$(uname -m | sed 's/x86_64/x64/; s/arm64/arm64/')"
 rm -rf "$APPDIR"
-dotnet publish "$ROOT/src/Pane.App" -c Release -o "$APPDIR" --nologo -v q
+dotnet publish "$ROOT/src/Pane.App" -c Release -r "$RID" --self-contained true \
+  -o "$APPDIR" --nologo -v q
 chmod +x "$BIN"
 
 echo "==> Building + deploying plugins (Release) → $PLUGINS_DEST"
