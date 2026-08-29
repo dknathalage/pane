@@ -23,15 +23,19 @@ public sealed class PluginManager
     readonly Dictionary<string, Loaded> _plugins = new();
     readonly HashSet<string> _disabled = new();     // ids the user disabled
     readonly SettingsStore? _store;
+    readonly Dictionary<string, Dictionary<string, string>> _pluginSettings = new();
+    readonly PluginFetcher? _fetcher;
 
-    public PluginManager(string dataRoot, SettingsStore? store = null)
+    public PluginManager(string dataRoot, SettingsStore? store = null, PluginFetcher? fetcher = null)
     {
         _dataRoot = dataRoot;
         _store = store;
+        _fetcher = fetcher;
         if (_store is not null)
         {
-            foreach (var id in _store.Load().DisabledPlugins)
-                _disabled.Add(id);
+            var s = _store.Load();
+            foreach (var id in s.DisabledPlugins) _disabled.Add(id);
+            foreach (var kv in s.PluginSettings) _pluginSettings[kv.Key] = new Dictionary<string, string>(kv.Value);
         }
     }
 
@@ -41,16 +45,176 @@ public sealed class PluginManager
     public IEnumerable<IPlugin> Active() =>
         _plugins.Values.Where(p => p.State == PluginState.Enabled && p.Instance is not null).Select(p => p.Instance!);
 
+    public IReadOnlyDictionary<string, string> GetPluginSettings(string id)
+    {
+        var meta = _plugins.TryGetValue(id, out var p) ? p.Metadata : null;
+        return PluginSettingsMerge.Merge(meta?.Settings, _pluginSettings.GetValueOrDefault(id));
+    }
+
+    public static string? FindPluginDll(string dir)
+    {
+        var dlls = Directory.GetFiles(dir, "*.dll");
+        return dlls.FirstOrDefault(f => Path.GetFileNameWithoutExtension(f).StartsWith("Pane.Plugins"))
+               ?? dlls.FirstOrDefault();
+    }
+
     public async Task LoadAllAsync(string pluginsRoot)
     {
         if (!Directory.Exists(pluginsRoot)) return;
         foreach (var dir in Directory.GetDirectories(pluginsRoot))
         {
-            var dlls = Directory.GetFiles(dir, "*.dll");
-            var dll = dlls.FirstOrDefault(f => Path.GetFileNameWithoutExtension(f).StartsWith("Pane.Plugins"))
-                      ?? dlls.FirstOrDefault();
+            var dll = FindPluginDll(dir);
             if (dll is null) continue;
             await LoadOneAsync(dll);
+        }
+    }
+
+    public async Task<PluginEntry> InstallFromUrlAsync(string url, CancellationToken ct = default)
+    {
+        if (_fetcher is null)
+            throw new InvalidOperationException("PluginManager has no fetcher configured");
+
+        var temp = await _fetcher.DownloadAndExtractAsync(url, ct);
+        try
+        {
+            var dll = FindPluginDll(temp)
+                ?? throw new PluginFetchException("No plugin dll found in the downloaded archive");
+
+            // Read the plugin id from a throwaway load, then unload before copying.
+            var (probe, pctx) = PluginLoader.CreateContext(dll);
+            var id = probe.Metadata.Id;
+            await probe.DisposeAsync();
+            pctx.Unload();
+
+            var pluginsRoot = Path.Combine(_dataRoot, "plugins");
+            var dst = Path.Combine(pluginsRoot, id);
+            Directory.CreateDirectory(dst);
+            CopyDir(temp, dst);
+
+            var installedDll = Path.Combine(dst, Path.GetFileName(dll));
+            await LoadOneAsync(installedDll);
+            return List().First(e => e.Metadata.Id == id);
+        }
+        finally
+        {
+            TryDelete(temp);
+        }
+    }
+
+    public async Task<UpdateCheck> CheckForUpdateAsync(string id, string sourceUrl, CancellationToken ct = default)
+    {
+        if (_fetcher is null)
+            throw new InvalidOperationException("PluginManager has no fetcher configured");
+        if (!_plugins.TryGetValue(id, out var p))
+            return new UpdateCheck(false, "", null, "plugin not installed");
+
+        var installed = p.Metadata.Version;
+        string temp;
+        try { temp = await _fetcher.DownloadAndExtractAsync(sourceUrl, ct); }
+        catch (PluginFetchException ex) { return new UpdateCheck(false, installed, null, ex.Message); }
+
+        try
+        {
+            var dll = FindPluginDll(temp);
+            if (dll is null) return new UpdateCheck(false, installed, null, "no plugin dll in archive");
+
+            var (probe, pctx) = PluginLoader.CreateContext(dll);
+            var remote = probe.Metadata.Version;
+            await probe.DisposeAsync();
+            pctx.Unload();
+
+            return new UpdateCheck(PluginVersion.IsUpdateAvailable(installed, remote), installed, remote, null);
+        }
+        finally { TryDelete(temp); }
+    }
+
+    public async Task UpdateAsync(string id, string sourceUrl, CancellationToken ct = default)
+    {
+        if (_fetcher is null)
+            throw new InvalidOperationException("PluginManager has no fetcher configured");
+        if (!_plugins.TryGetValue(id, out var p))
+            throw new InvalidOperationException($"plugin '{id}' not installed");
+
+        var temp = await _fetcher.DownloadAndExtractAsync(sourceUrl, ct);
+        try
+        {
+            // Step 1 — locate new dll; fail early (old plugin still loaded).
+            var newDll = FindPluginDll(temp)
+                ?? throw new PluginFetchException("no plugin dll in archive");
+
+            // Step 2 — validate the new archive is a loadable plugin BEFORE touching the running one.
+            try
+            {
+                var (probe, pctx) = PluginLoader.CreateContext(newDll);
+                await probe.DisposeAsync();
+                pctx.Unload();
+            }
+            catch (Exception ex) when (ex is not PluginFetchException)
+            {
+                throw new PluginFetchException("new archive contains an invalid plugin dll", ex);
+            }
+
+            // Step 3 — copy validated files into the plugin dir (old plugin still loaded; dll not locked).
+            var dstDir = Path.GetDirectoryName(p.DllPath)!;
+            ClearDir(dstDir);
+            await CopyDirWithRetryAsync(temp, dstDir);
+
+            // Step 4 — NOW unload the old plugin.
+            if (p.Instance is not null) { await p.Instance.DisposeAsync(); p.Instance = null; }
+            p.Ctx?.Unload(); p.Ctx = null;
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+
+            // Step 5 — remove stale entry so LoadOneAsync's duplicate-id guard won't block the reload
+            //           (guards against a dll rename between v1 and v2).
+            _plugins.Remove(id);
+
+            var installedDll = FindPluginDll(dstDir) ?? Path.Combine(dstDir, Path.GetFileName(newDll));
+            await LoadOneAsync(installedDll);
+        }
+        finally { TryDelete(temp); }
+    }
+
+    // Deletes all files and subdirectories inside dir without deleting dir itself.
+    static void ClearDir(string dir)
+    {
+        if (!Directory.Exists(dir)) return;
+        foreach (var f in Directory.GetFiles(dir)) File.Delete(f);
+        foreach (var d in Directory.GetDirectories(dir)) Directory.Delete(d, true);
+    }
+
+    static async Task CopyDirWithRetryAsync(string src, string dst)
+    {
+        Directory.CreateDirectory(dst);
+        foreach (var f in Directory.GetFiles(src))
+        {
+            var target = Path.Combine(dst, Path.GetFileName(f));
+            Exception? last = null;
+            for (var attempt = 0; attempt < 5; attempt++)
+            {
+                try
+                {
+                    if (File.Exists(target)) File.Delete(target); // unlink → new inode; avoids stale mmap of a loaded assembly
+                    File.Copy(f, target);
+                    last = null;
+                    break;
+                }
+                catch (IOException ex)   // Windows: file locked until ALC unload settles → retry
+                {
+                    last = ex;
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    await Task.Delay(100);
+                }
+            }
+            if (last is not null)
+                throw new PluginFetchException($"Could not overwrite '{target}' (file locked after unload)", last);
+        }
+        // Recursively copy subdirectories.
+        foreach (var subDir in Directory.GetDirectories(src))
+        {
+            var subDst = Path.Combine(dst, Path.GetFileName(subDir));
+            await CopyDirWithRetryAsync(subDir, subDst);
         }
     }
 
@@ -87,8 +251,9 @@ public sealed class PluginManager
                 return;
             }
 
-            var pctx = new PluginContext(id, Path.Combine(_dataRoot, "data", id),
-                new Dictionary<string, string>(), _matcher);
+            var settings = PluginSettingsMerge.Merge(
+                meta.Settings, _pluginSettings.GetValueOrDefault(id));
+            var pctx = new PluginContext(id, Path.Combine(_dataRoot, "data", id), settings, _matcher);
             await plugin.InitializeAsync(pctx);
             _plugins[id] = new Loaded
             {
@@ -115,22 +280,41 @@ public sealed class PluginManager
         if (p.Instance is not null) { await p.Instance.DisposeAsync(); p.Instance = null; }
         p.Ctx?.Unload(); p.Ctx = null;
         p.State = PluginState.Disabled; p.Error = null;
-        PersistDisabled();
+        Persist();
     }
 
     public async Task EnableAsync(string id)
     {
         if (!_plugins.TryGetValue(id, out var p)) return;
         _disabled.Remove(id);
-        PersistDisabled();
+        Persist();
         await LoadOneAsync(p.DllPath);   // re-instantiate fresh
     }
 
-    void PersistDisabled()
+    void Persist()
     {
         if (_store is null) return;
-        var hotkey = _store.Load().Hotkey;
-        _store.Save(new PaneSettings(new HashSet<string>(_disabled), hotkey));
+        var current = _store.Load();
+        _store.Save(current with
+        {
+            DisabledPlugins = new HashSet<string>(_disabled),
+            PluginSettings = _pluginSettings.ToDictionary(
+                e => e.Key, e => new Dictionary<string, string>(e.Value))
+        });
+    }
+
+    public async Task UpdatePluginSettingsAsync(string id, IReadOnlyDictionary<string, string> values)
+    {
+        _pluginSettings[id] = new Dictionary<string, string>(values);
+        Persist();
+
+        // Reload an enabled plugin so InitializeAsync sees the new settings.
+        if (_plugins.TryGetValue(id, out var p) && p.State == PluginState.Enabled)
+        {
+            if (p.Instance is not null) { await p.Instance.DisposeAsync(); p.Instance = null; }
+            p.Ctx?.Unload(); p.Ctx = null;
+            await LoadOneAsync(p.DllPath);
+        }
     }
 
     public async Task<PluginEntry> InstallAsync(string sourcePath)
@@ -165,7 +349,7 @@ public sealed class PluginManager
         if (p.Instance is not null) { await p.Instance.DisposeAsync(); p.Instance = null; }
         p.Ctx?.Unload(); p.Ctx = null;
         _plugins.Remove(id);
-        if (_disabled.Remove(id)) PersistDisabled();
+        if (_disabled.Remove(id)) Persist();
         var dir = Path.GetDirectoryName(p.DllPath)!;
         TryDelete(dir);
     }
@@ -175,6 +359,8 @@ public sealed class PluginManager
         Directory.CreateDirectory(dst);
         foreach (var f in Directory.GetFiles(src))
             File.Copy(f, Path.Combine(dst, Path.GetFileName(f)), true);
+        foreach (var subDir in Directory.GetDirectories(src))
+            CopyDir(subDir, Path.Combine(dst, Path.GetFileName(subDir)));
     }
 
     static void TryDelete(string dir)

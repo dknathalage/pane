@@ -1,11 +1,14 @@
 @inject PluginManager Manager
 @inject QueryDispatcher Dispatcher
 @inject IWindowController Window
+@inject IFuzzyMatcher Fuzzy
+@inject IJSRuntime JS
+@implements IDisposable
 
 <div class="pane-root" @onkeydown="OnKeyDown" tabindex="-1">
     @if (_showSettings)
     {
-        <SettingsPage />
+        <SettingsPage OnBack="CloseSettings" />
     }
     else
     {
@@ -16,6 +19,7 @@
                 <line x1="21" y1="21" x2="16.5" y2="16.5" />
             </svg>
             <input class="pane-search"
+                   @ref="_input"
                    value="@_text"
                    @oninput="OnInput"
                    placeholder="Search apps, repos, scripts, math…"
@@ -34,6 +38,7 @@
                 <span class="pane-hints">
                     <kbd>↑</kbd><kbd>↓</kbd> navigate
                     <kbd>↵</kbd> open
+                    <kbd>⌘</kbd><kbd>,</kbd> settings
                     <kbd>esc</kbd> close
                 </span>
             </div>
@@ -43,7 +48,7 @@
             <div class="pane-empty">
                 @if (string.IsNullOrWhiteSpace(_text))
                 {
-                    <span>Start typing to search — or type <b>settings</b> to manage plugins.</span>
+                    <span>Start typing to search — or type <b>settings</b> (or press <kbd>⌘</kbd><kbd>,</kbd>) to manage plugins.</span>
                 }
                 else
                 {
@@ -55,28 +60,64 @@
 </div>
 
 @code {
+    // The Settings screen is reached like any other result: search "settings"
+    // (or the ⌘, shortcut). No dedicated button.
+    static readonly BuiltinCommand SettingsCommand =
+        new("settings", "Settings", "Manage plugins & marketplaces",
+            new[] { "settings", "preferences", "config" });
+
     string _text = "";
     int _selected;
     bool _showSettings;
     IReadOnlyList<ScoredResult> _results = Array.Empty<ScoredResult>();
     CancellationTokenSource? _cts;
 
+    ElementReference _input;
+    DotNetObjectReference<Launcher>? _self;
+    bool _jsInitialized;
+
     // Populate with everything on open (Raycast-style), so the launcher is
     // immediately useful and empty-query results rank by BaseScore.
     protected override async Task OnInitializedAsync() => await RunQuery();
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _self = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("paneWindow.init", _self);
+            _jsInitialized = true;
+        }
+        // Keep the search box focused whenever we're on the launcher view.
+        if (_jsInitialized && !_showSettings)
+            await JS.InvokeVoidAsync("paneWindow.focus");
+    }
+
+    /// <summary>JS callback: the rendered content is this tall — size the window to fit.</summary>
+    [JSInvokable]
+    public void OnContentResized(int height) => Window.SetHeight(height);
+
+    /// <summary>JS callback: the window lost focus — dismiss the overlay (Spotlight-style).</summary>
+    [JSInvokable]
+    public void OnWindowBlur() => Window.Hide();
+
+    void OpenSettings()
+    {
+        _showSettings = true;
+        _text = "";
+        _results = Array.Empty<ScoredResult>();
+    }
+
+    void CloseSettings()
+    {
+        _showSettings = false;
+        _text = "";
+        _results = Array.Empty<ScoredResult>();
+    }
+
     async Task OnInput(ChangeEventArgs e)
     {
         _text = e.Value?.ToString() ?? "";
-
-        if (_text.Trim().Equals("settings", StringComparison.OrdinalIgnoreCase))
-        {
-            _showSettings = true;
-            _text = "";
-            _results = Array.Empty<ScoredResult>();
-            return;
-        }
-
         await RunQuery();
     }
 
@@ -95,23 +136,44 @@
 
         try
         {
-            _results = await Dispatcher.DispatchAsync(_text, plugins, token);
+            var results = (await Dispatcher.DispatchAsync(_text, plugins, token)).ToList();
+            AddSettingsResult(results);
+            _results = results;
             _selected = 0;
             StateHasChanged();
         }
         catch (OperationCanceledException) { }
     }
 
+    // Merge the built-in "Settings" command into the ranked plugin results.
+    void AddSettingsResult(List<ScoredResult> results)
+    {
+        var score = SettingsCommand.Score(_text, Fuzzy, out var highlights);
+        if (score is null) return;
+
+        var result = new PaneResult(
+            SettingsCommand.Title, SettingsCommand.Subtitle, "", 0,
+            () => { OpenSettings(); return Task.CompletedTask; });
+
+        results.Add(new ScoredResult(result, score.Value, highlights, SettingsCommand.Id));
+        results.Sort((a, b) => b.Score.CompareTo(a.Score));
+    }
+
     async Task OnKeyDown(KeyboardEventArgs e)
     {
+        // ⌘, (macOS) / Ctrl+, — standard "open settings" shortcut.
+        if (e.Key == "," && (e.MetaKey || e.CtrlKey))
+        {
+            if (!_showSettings) OpenSettings();
+            return;
+        }
+
         switch (e.Key)
         {
             case "Escape":
                 if (_showSettings)
                 {
-                    _showSettings = false;
-                    _text = "";
-                    _results = Array.Empty<ScoredResult>();
+                    CloseSettings();
                 }
                 else
                 {
@@ -135,4 +197,6 @@
                 break;
         }
     }
+
+    public void Dispose() => _self?.Dispose();
 }

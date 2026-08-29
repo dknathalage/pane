@@ -1,0 +1,62 @@
+{
+  "name": "Pane Official",
+  "description": "Official Pane plugins",
+  "owner": { "name": "pane", "url": "https://github.com/dknathalage/pane" },
+  "plugins": [
+    {
+      "id": "apps",
+      "name": "Applications",
+      "description": "Launch installed applications",
+      "icon": "🚀",
+      "version": "1.0.0",
+      "category": "system",
+      "author": "pane",
+      "homepage": "https://github.com/dknathalage/pane",
+      "source": { "type": "url", "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.0.0/Pane.Plugins.Apps.zip" }
+    },
+    {
+      "id": "calc",
+      "name": "Calculator",
+      "description": "Inline arithmetic",
+      "icon": "🧮",
+      "version": "1.0.0",
+      "category": "utilities",
+      "author": "pane",
+      "homepage": "https://github.com/dknathalage/pane",
+      "source": { "type": "url", "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.0.0/Pane.Plugins.Calculator.zip" }
+    },
+    {
+      "id": "files",
+      "name": "Files",
+      "description": "Search files and folders",
+      "icon": "📁",
+      "version": "1.0.0",
+      "category": "system",
+      "author": "pane",
+      "homepage": "https://github.com/dknathalage/pane",
+      "source": { "type": "url", "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.0.0/Pane.Plugins.Files.zip" }
+    },
+    {
+      "id": "scripts",
+      "name": "Scripts",
+      "description": "Run user scripts",
+      "icon": "📜",
+      "version": "1.0.0",
+      "category": "utilities",
+      "author": "pane",
+      "homepage": "https://github.com/dknathalage/pane",
+      "source": { "type": "url", "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.0.0/Pane.Plugins.Scripts.zip" }
+    },
+    {
+      "id": "vscode",
+      "name": "VSCode Repos",
+      "description": "Open repositories in VS Code",
+      "icon": "📂",
+      "version": "1.0.0",
+      "category": "development",
+      "author": "pane",
+      "homepage": "https://github.com/dknathalage/pane",
+      "source": { "type": "url", "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.0.0/Pane.Plugins.VSCode.zip" }
+    }
+  ]
+}

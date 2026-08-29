@@ -9,13 +9,14 @@
     --sel: rgba(255, 255, 255, 0.10);
     --border: rgba(255, 255, 255, 0.08);
     --mark: #ffd60a;
+    --ok: #30d158;
+    --danger: #ff453a;
 }
 
 * { box-sizing: border-box; }
 
 html, body {
     margin: 0;
-    height: 100%;
     background: var(--bg);
     color: var(--fg);
     font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
@@ -24,10 +25,11 @@ html, body {
     user-select: none;
 }
 
+/* Content-driven height: the host sizes the native window to fit .pane-root,
+   so this must be as tall as its content (never 100vh). */
 .pane-root {
     display: flex;
     flex-direction: column;
-    height: 100vh;
     background: var(--bg);
     outline: none;
 }
@@ -65,10 +67,10 @@ html, body {
     font-weight: 300;
 }
 
-/* Results area — grows with content, scrolls when long */
+/* Results area — grows with content, scrolls past a cap so the window
+   never exceeds its max height (search row + this + footer ≈ 512px). */
 .pane-body {
-    flex: 1;
-    min-height: 0;
+    max-height: 400px;
     overflow-y: auto;
     padding: 8px;
 }
@@ -232,3 +234,265 @@ kbd {
     background: rgba(255, 255, 255, 0.12);
     border-radius: 4px;
 }
+
+/* ── Settings page ─────────────────────────────────────────────────────── */
+/* Settings is a full-height view; 520px matches the window's max height so
+   the content-sized window opens tall and the panes scroll internally. */
+.settings {
+    display: flex;
+    flex-direction: column;
+    height: 520px;
+    background: var(--bg);
+    color: var(--fg);
+}
+
+.settings nav {
+    display: flex;
+    gap: 4px;
+    padding: 14px 16px 0;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.settings nav button {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 12px;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.12s ease, border-color 0.12s ease;
+}
+
+.settings nav button:hover { color: var(--fg); }
+
+.settings nav button.settings-back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    margin-right: 4px;
+    align-self: center;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    border-bottom: none;
+}
+
+.settings nav button.settings-back:hover {
+    background: var(--sel);
+    color: var(--fg);
+}
+
+.settings nav button.active {
+    color: var(--fg);
+    border-bottom-color: var(--accent);
+}
+
+.settings section {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 8px;
+}
+
+/* ── Plugins pane ──────────────────────────────────────────────────────── */
+.plugins-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.plugin-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    transition: background 0.12s ease;
+}
+
+.plugin-row:hover { background: var(--sel); }
+
+.plugin-row .icon {
+    font-size: 20px;
+    line-height: 1;
+    flex-shrink: 0;
+    width: 24px;
+    text-align: center;
+}
+
+.plugin-row .name {
+    flex: 1;
+    min-width: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plugin-row .name small {
+    color: var(--muted);
+    font-weight: 400;
+    margin-left: 6px;
+    font-size: 12px;
+}
+
+.plugin-row .badge {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 999px;
+    text-transform: capitalize;
+    background: var(--sel);
+    color: var(--muted);
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.plugin-row .badge.enabled {
+    background: rgba(48, 209, 88, 0.16);
+    color: var(--ok);
+}
+
+.plugin-row .badge.errored {
+    background: rgba(255, 69, 58, 0.16);
+    color: var(--danger);
+    text-transform: none;
+}
+
+/* Buttons across the settings surface */
+.plugins-pane button,
+.plugin-settings button {
+    flex-shrink: 0;
+    background: var(--bg-elev);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.plugins-pane button:hover,
+.plugin-settings button:hover {
+    background: var(--sel);
+    border-color: var(--muted);
+}
+
+/* Uninstall reads as destructive on hover */
+.plugin-row button:last-child:hover {
+    background: rgba(255, 69, 58, 0.16);
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+/* Save = primary within the per-plugin settings form */
+.plugin-settings .settings-actions button:first-child {
+    background: var(--accent);
+    border-color: transparent;
+    color: #fff;
+}
+
+.plugin-settings .settings-actions button:first-child:hover {
+    background: #339dff;
+    color: #fff;
+}
+
+.plugin-settings {
+    padding: 8px 12px 12px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.plugin-settings .setting-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.plugin-settings .setting-label {
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+    color: var(--fg);
+}
+.plugin-settings .setting-desc {
+    color: var(--muted);
+    font-size: 11px;
+}
+.plugin-settings input[type="text"],
+.plugin-settings input[type="number"],
+.plugin-settings select {
+    background: var(--bg);
+    color: var(--fg);
+    border: 1px solid var(--muted);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13px;
+}
+.plugin-settings .settings-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+/* ── Marketplace pane ──────────────────────────────────────────────────── */
+.marketplace-pane { display: flex; flex-direction: column; gap: 12px; padding: 4px 8px; }
+
+.mkt-manage { display: flex; gap: 8px; }
+.mkt-source-input {
+    flex: 1; background: var(--bg-elev); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 13px;
+}
+.mkt-manage button {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 7px 14px; font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.mkt-manage button:disabled { opacity: 0.4; cursor: default; }
+
+.mkt-sources { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mkt-source-chip {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg);
+    background: var(--sel); border-radius: 999px; padding: 3px 10px;
+}
+.mkt-source-remove {
+    background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; padding: 0;
+}
+.mkt-source-remove:hover { color: var(--danger); }
+.mkt-refresh {
+    margin-left: auto; background: var(--bg-elev); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 4px 12px; font-size: 12px; cursor: pointer;
+}
+
+.mkt-status { color: var(--muted); font-size: 13px; padding: 16px 4px; }
+.mkt-error { color: var(--danger); }
+
+.mkt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.mkt-card {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px;
+}
+.mkt-card-head { display: flex; align-items: baseline; gap: 8px; }
+.mkt-icon { font-size: 18px; }
+.mkt-name { font-size: 14px; font-weight: 600; color: var(--fg); flex: 1; }
+.mkt-ver { font-size: 11px; color: var(--muted); }
+.mkt-desc { font-size: 12px; color: var(--fg); opacity: 0.85; min-height: 30px; }
+.mkt-meta { font-size: 11px; color: var(--muted); }
+.mkt-actions { margin-top: 4px; }
+.mkt-actions button {
+    width: 100%; border: none; border-radius: 8px; padding: 6px; font-size: 13px;
+    font-weight: 500; cursor: pointer; color: #fff;
+}
+.mkt-actions button:disabled { opacity: 0.5; cursor: default; }
+.mkt-install { background: var(--accent); }
+.mkt-update { background: var(--mark); color: #1c1c1e !important; }
+.mkt-installed { display: inline-block; font-size: 12px; font-weight: 600; color: var(--ok); padding: 6px 0; }

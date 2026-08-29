@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Pane.Abstractions;
 using Pane.App;
 using Pane.Core;
+using Pane.Core.Marketplace;
 using Pane.Core.Plugins;
 using Pane.Core.Query;
 using Pane.Core.Settings;
@@ -29,8 +30,27 @@ var settingsStorePath = Path.Combine(dataRoot, "settings.json");
 var settingsStore = new SettingsStore(settingsStorePath);
 builder.Services.AddSingleton(settingsStore);
 
+builder.Services.AddSingleton(new HttpClient { Timeout = TimeSpan.FromSeconds(60) });
+builder.Services.AddSingleton(sp => new PluginFetcher(sp.GetRequiredService<HttpClient>()));
+
 builder.Services.AddSingleton(sp =>
-    new PluginManager(dataRoot, sp.GetRequiredService<SettingsStore>()));
+    new PluginManager(dataRoot,
+        sp.GetRequiredService<SettingsStore>(),
+        sp.GetRequiredService<PluginFetcher>()));
+
+// ── Marketplace ────────────────────────────────────────────────────────────
+const string DefaultMarketplaceName = "Pane Official";
+const string DefaultMarketplaceSource = "https://github.com/dknathalage/pane";
+
+builder.Services.AddSingleton(new MarketplaceConfigStore(
+    Path.Combine(dataRoot, "marketplaces.json"), DefaultMarketplaceName, DefaultMarketplaceSource));
+builder.Services.AddSingleton(new InstalledStore(Path.Combine(dataRoot, "installed.json")));
+builder.Services.AddSingleton(sp => new MarketplaceService(
+    sp.GetRequiredService<HttpClient>(),
+    sp.GetRequiredService<MarketplaceConfigStore>(),
+    sp.GetRequiredService<InstalledStore>(),
+    sp.GetRequiredService<PluginManager>(),
+    Path.Combine(dataRoot, "marketplace-cache")));
 
 builder.Services.AddSingleton(sp =>
     new QueryDispatcher(sp.GetRequiredService<IFuzzyMatcher>()));
