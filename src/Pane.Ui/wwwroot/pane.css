@@ -65,6 +65,33 @@ html, body {
     font-weight: 300;
 }
 
+/* Settings (gear) button — pinned to the right of the search row */
+.pane-settings-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.pane-settings-btn:hover {
+    background: var(--sel);
+    color: var(--fg);
+}
+
+.pane-settings-btn:active {
+    background: var(--sel);
+    color: var(--accent);
+}
+
 /* Results area — grows with content, scrolls when long */
 .pane-body {
     flex: 1;
