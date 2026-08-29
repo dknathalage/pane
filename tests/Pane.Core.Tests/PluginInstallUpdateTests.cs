@@ -69,4 +69,66 @@ public class PluginInstallUpdateTests
         // Copied under plugins/<id>/
         Assert.True(File.Exists(Path.Combine(root, "plugins", "test", "TestPlugin.dll")));
     }
+
+    [Theory]
+    [InlineData("1.0", "2.0", true)]
+    [InlineData("2.0", "2.0", false)]
+    [InlineData("2.0", "1.0", false)]
+    [InlineData("1.0.0", "1.0.1", true)]
+    [InlineData("beta", "beta", false)]     // non-semver equal → no update
+    [InlineData("beta", "rc1", true)]        // non-semver differs → update
+    public void IsUpdateAvailable_compares_versions(string installed, string remote, bool expected)
+        => Assert.Equal(expected, PluginVersion.IsUpdateAvailable(installed, remote));
+
+    // Serves v1 bytes for one url and v2 bytes for another.
+    static PluginManager MgrServingMany(string dataRoot, Dictionary<string, byte[]> byUrl)
+    {
+        var http = new HttpClient(new StubHandler(req =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(byUrl[req.RequestUri!.ToString()])
+            }));
+        return new PluginManager(dataRoot, store: null, fetcher: new PluginFetcher(http));
+    }
+
+    [Fact]
+    public async Task CheckForUpdate_detects_a_newer_version()
+    {
+        var root = NewRoot();
+        var v1 = "https://example/v1.zip";
+        var v2 = "https://example/v2.zip";
+        var mgr = MgrServingMany(root, new()
+        {
+            [v1] = ZipDir(FixtureDir("TestPlugin")),
+            [v2] = ZipDir(FixtureDir("TestPluginV2")),
+        });
+
+        await mgr.InstallFromUrlAsync(v1);
+        var check = await mgr.CheckForUpdateAsync("test", v2);
+
+        Assert.True(check.Available);
+        Assert.Equal("1.0", check.InstalledVersion);
+        Assert.Equal("2.0", check.RemoteVersion);
+    }
+
+    [Fact]
+    public async Task Update_replaces_the_plugin_in_place()
+    {
+        var root = NewRoot();
+        var v1 = "https://example/v1.zip";
+        var v2 = "https://example/v2.zip";
+        var mgr = MgrServingMany(root, new()
+        {
+            [v1] = ZipDir(FixtureDir("TestPlugin")),
+            [v2] = ZipDir(FixtureDir("TestPluginV2")),
+        });
+
+        await mgr.InstallFromUrlAsync(v1);
+        Assert.Equal("1.0", mgr.List().Single().Metadata.Version);
+
+        await mgr.UpdateAsync("test", v2);
+
+        Assert.Equal("2.0", mgr.List().Single().Metadata.Version);
+        Assert.Single(mgr.Active());
+    }
 }

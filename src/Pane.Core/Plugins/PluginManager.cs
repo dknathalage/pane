@@ -101,6 +101,88 @@ public sealed class PluginManager
         }
     }
 
+    public async Task<UpdateCheck> CheckForUpdateAsync(string id, string sourceUrl, CancellationToken ct = default)
+    {
+        if (_fetcher is null)
+            throw new InvalidOperationException("PluginManager has no fetcher configured");
+        if (!_plugins.TryGetValue(id, out var p))
+            return new UpdateCheck(false, "", null, "plugin not installed");
+
+        var installed = p.Metadata.Version;
+        string temp;
+        try { temp = await _fetcher.DownloadAndExtractAsync(sourceUrl, ct); }
+        catch (PluginFetchException ex) { return new UpdateCheck(false, installed, null, ex.Message); }
+
+        try
+        {
+            var dll = FindPluginDll(temp);
+            if (dll is null) return new UpdateCheck(false, installed, null, "no plugin dll in archive");
+
+            var (probe, pctx) = PluginLoader.CreateContext(dll);
+            var remote = probe.Metadata.Version;
+            await probe.DisposeAsync();
+            pctx.Unload();
+
+            return new UpdateCheck(PluginVersion.IsUpdateAvailable(installed, remote), installed, remote, null);
+        }
+        finally { TryDelete(temp); }
+    }
+
+    public async Task UpdateAsync(string id, string sourceUrl, CancellationToken ct = default)
+    {
+        if (_fetcher is null)
+            throw new InvalidOperationException("PluginManager has no fetcher configured");
+        if (!_plugins.TryGetValue(id, out var p))
+            throw new InvalidOperationException($"plugin '{id}' not installed");
+
+        var temp = await _fetcher.DownloadAndExtractAsync(sourceUrl, ct);
+        try
+        {
+            var dstDir = Path.GetDirectoryName(p.DllPath)!;
+
+            // Unload the running plugin so its files can be overwritten.
+            if (p.Instance is not null) { await p.Instance.DisposeAsync(); p.Instance = null; }
+            p.Ctx?.Unload(); p.Ctx = null;
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+
+            await CopyDirWithRetryAsync(temp, dstDir);
+
+            var dll = FindPluginDll(dstDir) ?? p.DllPath;
+            await LoadOneAsync(dll);
+        }
+        finally { TryDelete(temp); }
+    }
+
+    static async Task CopyDirWithRetryAsync(string src, string dst)
+    {
+        Directory.CreateDirectory(dst);
+        foreach (var f in Directory.GetFiles(src))
+        {
+            var target = Path.Combine(dst, Path.GetFileName(f));
+            Exception? last = null;
+            for (var attempt = 0; attempt < 5; attempt++)
+            {
+                try
+                {
+                    if (File.Exists(target)) File.Delete(target); // unlink → new inode; avoids stale mmap of a loaded assembly
+                    File.Copy(f, target);
+                    last = null;
+                    break;
+                }
+                catch (IOException ex)   // Windows: file locked until ALC unload settles → retry
+                {
+                    last = ex;
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    await Task.Delay(100);
+                }
+            }
+            if (last is not null)
+                throw new PluginFetchException($"Could not overwrite '{target}' (file locked after unload)", last);
+        }
+    }
+
     async Task LoadOneAsync(string dllPath)
     {
         // Read metadata even for disabled plugins by instantiating; on failure record Errored.
