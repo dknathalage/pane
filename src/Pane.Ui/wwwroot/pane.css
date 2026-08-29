@@ -232,3 +232,40 @@ kbd {
     background: rgba(255, 255, 255, 0.12);
     border-radius: 4px;
 }
+
+.plugin-settings {
+    padding: 8px 12px 12px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.plugin-settings .setting-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.plugin-settings .setting-label {
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+    color: var(--fg);
+}
+.plugin-settings .setting-desc {
+    color: var(--muted);
+    font-size: 11px;
+}
+.plugin-settings input[type="text"],
+.plugin-settings input[type="number"],
+.plugin-settings select {
+    background: var(--bg);
+    color: var(--fg);
+    border: 1px solid var(--muted);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13px;
+}
+.plugin-settings .settings-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
