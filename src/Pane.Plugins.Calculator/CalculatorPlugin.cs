@@ -6,7 +6,8 @@ namespace Pane.Plugins.Calculator;
 public sealed class CalculatorPlugin : IPlugin
 {
     public PluginMetadata Metadata { get; } = new(
-        "calc", "Calculator", "🧮", "1.0.0",
+        "calc", "Calculator", "🧮",
+        "1.1.0", // x-release-please-version
         "Evaluate math expressions",
         new[] { "calc", "math", "=" }, "=", Priority: 10);
 

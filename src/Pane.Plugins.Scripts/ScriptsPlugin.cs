@@ -7,7 +7,8 @@ namespace Pane.Plugins.Scripts;
 public sealed class ScriptsPlugin : IPlugin
 {
     public PluginMetadata Metadata { get; } = new(
-        "scripts", "Scripts", "📜", "1.0.0",
+        "scripts", "Scripts", "📜",
+        "1.1.0", // x-release-please-version
         "Run shell scripts from your scripts folders",
         new[] { "script", "run", "sh" }, ">");
 

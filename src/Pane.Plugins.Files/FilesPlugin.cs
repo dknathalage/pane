@@ -16,7 +16,8 @@ public sealed class FilesPlugin : IPlugin
     const int MaxResults = 50;
 
     public PluginMetadata Metadata { get; } = new(
-        "files", "Files", "📁", "1.0.0",
+        "files", "Files", "📁",
+        "1.1.0", // x-release-please-version
         "Search files and folders",
         new[] { "file", "folder", "find" }, ActivationKeyword);
 

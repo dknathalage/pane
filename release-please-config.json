@@ -12,7 +12,12 @@
           "type": "json",
           "path": "marketplace.json",
           "jsonpath": "$.plugins[*].version"
-        }
+        },
+        "src/Pane.Plugins.Apps/AppsPlugin.cs",
+        "src/Pane.Plugins.Calculator/CalculatorPlugin.cs",
+        "src/Pane.Plugins.Files/FilesPlugin.cs",
+        "src/Pane.Plugins.Scripts/ScriptsPlugin.cs",
+        "src/Pane.Plugins.VSCode/VSCodePlugin.cs"
       ]
     }
   }
