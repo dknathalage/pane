@@ -1,8 +1,8 @@
 @using Pane.Abstractions
 @using Pane.Core.Plugins
-@using Pane.Core
+@using Pane.Core.Marketplace
 @inject PluginManager Manager
-@inject IFilePicker FilePicker
+@inject InstalledStore Installed
 
 <div class="plugins-pane">
     @foreach (var p in Manager.List())
@@ -73,7 +73,6 @@
             </div>
         }
     }
-    <button @onclick="Install">Install from folder…</button>
 </div>
 
 @code {
@@ -131,16 +130,7 @@
     async Task Uninstall(string id)
     {
         await Manager.UninstallAsync(id);
+        Installed.Remove(id);
         StateHasChanged();
-    }
-
-    async Task Install()
-    {
-        var path = await FilePicker.PickFolderAsync();
-        if (path is not null)
-        {
-            await Manager.InstallAsync(path);
-            StateHasChanged();
-        }
     }
 }

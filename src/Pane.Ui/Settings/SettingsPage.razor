@@ -1,4 +1,15 @@
 <div class="settings">
-    <nav><button class="active">Plugins</button></nav>
-    <section><PluginsPane /></section>
+    <nav>
+        <button class="@(_tab == Tab.Plugins ? "active" : "")" @onclick="() => _tab = Tab.Plugins">Plugins</button>
+        <button class="@(_tab == Tab.Marketplace ? "active" : "")" @onclick="() => _tab = Tab.Marketplace">Marketplace</button>
+    </nav>
+    <section>
+        @if (_tab == Tab.Plugins) { <PluginsPane /> }
+        else { <MarketplacePane /> }
+    </section>
 </div>
+
+@code {
+    enum Tab { Plugins, Marketplace }
+    Tab _tab = Tab.Plugins;
+}

@@ -467,3 +467,55 @@ kbd {
     gap: 8px;
     margin-top: 4px;
 }
+
+/* ── Marketplace pane ──────────────────────────────────────────────────── */
+.marketplace-pane { display: flex; flex-direction: column; gap: 12px; padding: 4px 8px; }
+
+.mkt-manage { display: flex; gap: 8px; }
+.mkt-source-input {
+    flex: 1; background: var(--bg-elev); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 13px;
+}
+.mkt-manage button {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 7px 14px; font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.mkt-manage button:disabled { opacity: 0.4; cursor: default; }
+
+.mkt-sources { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mkt-source-chip {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg);
+    background: var(--sel); border-radius: 999px; padding: 3px 10px;
+}
+.mkt-source-remove {
+    background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; padding: 0;
+}
+.mkt-source-remove:hover { color: var(--danger); }
+.mkt-refresh {
+    margin-left: auto; background: var(--bg-elev); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 4px 12px; font-size: 12px; cursor: pointer;
+}
+
+.mkt-status { color: var(--muted); font-size: 13px; padding: 16px 4px; }
+.mkt-error { color: var(--danger); }
+
+.mkt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.mkt-card {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px;
+}
+.mkt-card-head { display: flex; align-items: baseline; gap: 8px; }
+.mkt-icon { font-size: 18px; }
+.mkt-name { font-size: 14px; font-weight: 600; color: var(--fg); flex: 1; }
+.mkt-ver { font-size: 11px; color: var(--muted); }
+.mkt-desc { font-size: 12px; color: var(--fg); opacity: 0.85; min-height: 30px; }
+.mkt-meta { font-size: 11px; color: var(--muted); }
+.mkt-actions { margin-top: 4px; }
+.mkt-actions button {
+    width: 100%; border: none; border-radius: 8px; padding: 6px; font-size: 13px;
+    font-weight: 500; cursor: pointer; color: #fff;
+}
+.mkt-actions button:disabled { opacity: 0.5; cursor: default; }
+.mkt-install { background: var(--accent); }
+.mkt-update { background: var(--mark); color: #1c1c1e !important; }
+.mkt-installed { display: inline-block; font-size: 12px; font-weight: 600; color: var(--ok); padding: 6px 0; }
