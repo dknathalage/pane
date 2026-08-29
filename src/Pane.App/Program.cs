@@ -29,8 +29,13 @@ var settingsStorePath = Path.Combine(dataRoot, "settings.json");
 var settingsStore = new SettingsStore(settingsStorePath);
 builder.Services.AddSingleton(settingsStore);
 
+builder.Services.AddSingleton(new HttpClient { Timeout = TimeSpan.FromSeconds(60) });
+builder.Services.AddSingleton(sp => new PluginFetcher(sp.GetRequiredService<HttpClient>()));
+
 builder.Services.AddSingleton(sp =>
-    new PluginManager(dataRoot, sp.GetRequiredService<SettingsStore>()));
+    new PluginManager(dataRoot,
+        sp.GetRequiredService<SettingsStore>(),
+        sp.GetRequiredService<PluginFetcher>()));
 
 builder.Services.AddSingleton(sp =>
     new QueryDispatcher(sp.GetRequiredService<IFuzzyMatcher>()));
