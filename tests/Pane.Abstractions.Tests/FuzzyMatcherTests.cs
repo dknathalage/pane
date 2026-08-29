@@ -57,4 +57,55 @@ public class FuzzyMatcherTests
         Assert.True(_m.TryMatch("HW", "hello world", out _, out var pos));
         Assert.Equal(new[] { 0, 6 }, pos);
     }
+
+    // ── Glob support: a query containing * or ? is matched as an anchored,
+    //    case-insensitive filename glob rather than a fuzzy subsequence. ──
+
+    [Fact]
+    public void Star_suffix_glob_matches_by_extension()
+    {
+        Assert.True(_m.TryMatch("*.pdf", "report.pdf", out var score, out _));
+        Assert.True(score > 0);
+    }
+
+    [Fact]
+    public void Star_suffix_glob_rejects_other_extensions()
+    {
+        Assert.False(_m.TryMatch("*.pdf", "report.txt", out _, out _));
+    }
+
+    [Fact]
+    public void Star_prefix_glob_matches_by_name_start()
+    {
+        Assert.True(_m.TryMatch("report*", "report.pdf", out _, out _));
+        Assert.False(_m.TryMatch("report*", "budget.pdf", out _, out _));
+    }
+
+    [Fact]
+    public void Question_mark_matches_exactly_one_character()
+    {
+        Assert.True(_m.TryMatch("report?.md", "report1.md", out _, out _));
+        Assert.False(_m.TryMatch("report?.md", "report.md", out _, out _));   // zero chars
+        Assert.False(_m.TryMatch("report?.md", "report12.md", out _, out _)); // two chars
+    }
+
+    [Fact]
+    public void Glob_is_anchored_not_substring()
+    {
+        // "*.pdf" must match the whole name ending in .pdf, not appear anywhere.
+        Assert.False(_m.TryMatch("*.pdf", "report.pdf.txt", out _, out _));
+    }
+
+    [Fact]
+    public void Glob_is_case_insensitive()
+    {
+        Assert.True(_m.TryMatch("*.PDF", "report.pdf", out _, out _));
+    }
+
+    [Fact]
+    public void Surrounding_stars_match_substring()
+    {
+        Assert.True(_m.TryMatch("*notes*", "my-notes-2026.txt", out _, out _));
+        Assert.False(_m.TryMatch("*notes*", "budget.txt", out _, out _));
+    }
 }

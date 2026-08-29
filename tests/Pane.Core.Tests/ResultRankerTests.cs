@@ -62,4 +62,15 @@ public class ResultRankerTests
         var ranked = _ranker.Rank(q, Meta(), new[] { R("cloudtray") }).ToList();
         Assert.Empty(ranked);
     }
+
+    [Fact]
+    public void Wildcard_query_keeps_only_glob_matching_titles()
+    {
+        // End-to-end of "/*.pdf": the ranker keeps names ending in .pdf and drops
+        // the rest, via the matcher's glob support.
+        var q = new PaneQuery("/*.pdf", "/", "*.pdf");
+        var ranked = _ranker.Rank(q, Meta(),
+            new[] { R("report.pdf"), R("notes.txt"), R("budget.pdf") }).ToList();
+        Assert.Equal(new[] { "budget.pdf", "report.pdf" }, ranked.Select(r => r.Result.Title).OrderBy(t => t));
+    }
 }
