@@ -106,4 +106,35 @@ public sealed class MarketplaceService
         Directory.CreateDirectory(_cacheDir);
         File.WriteAllText(cachePath, json);
     }
+
+    public async Task InstallAsync(MarketplaceEntry entry, CancellationToken ct = default)
+    {
+        var src = entry.Plugin.Source;
+        if (src.Type == "url" && src.Url is not null)
+            await _plugins.InstallFromUrlAsync(src.Url, ct);
+        else if (src.Type == "local" && src.Path is not null)
+            await _plugins.InstallAsync(src.Path);
+        else
+            throw new InvalidOperationException($"Unsupported plugin source type '{src.Type}'");
+
+        _installed.Record(entry.Plugin.Id,
+            new InstalledInfo(entry.MarketplaceName, src.Url ?? src.Path ?? "", entry.Plugin.Version));
+    }
+
+    public async Task UpdateAsync(MarketplaceEntry entry, CancellationToken ct = default)
+    {
+        var src = entry.Plugin.Source;
+        if (src.Type != "url" || src.Url is null)
+            throw new InvalidOperationException("Only url-sourced plugins can be updated in place");
+
+        await _plugins.UpdateAsync(entry.Plugin.Id, src.Url, ct);
+        _installed.Record(entry.Plugin.Id,
+            new InstalledInfo(entry.MarketplaceName, src.Url, entry.Plugin.Version));
+    }
+
+    public async Task UninstallAsync(string id, CancellationToken ct = default)
+    {
+        await _plugins.UninstallAsync(id);
+        _installed.Remove(id);
+    }
 }
