@@ -138,20 +138,49 @@ public sealed class PluginManager
         var temp = await _fetcher.DownloadAndExtractAsync(sourceUrl, ct);
         try
         {
-            var dstDir = Path.GetDirectoryName(p.DllPath)!;
+            // Step 1 — locate new dll; fail early (old plugin still loaded).
+            var newDll = FindPluginDll(temp)
+                ?? throw new PluginFetchException("no plugin dll in archive");
 
-            // Unload the running plugin so its files can be overwritten.
+            // Step 2 — validate the new archive is a loadable plugin BEFORE touching the running one.
+            try
+            {
+                var (probe, pctx) = PluginLoader.CreateContext(newDll);
+                await probe.DisposeAsync();
+                pctx.Unload();
+            }
+            catch (Exception ex) when (ex is not PluginFetchException)
+            {
+                throw new PluginFetchException("new archive contains an invalid plugin dll", ex);
+            }
+
+            // Step 3 — copy validated files into the plugin dir (old plugin still loaded; dll not locked).
+            var dstDir = Path.GetDirectoryName(p.DllPath)!;
+            ClearDir(dstDir);
+            await CopyDirWithRetryAsync(temp, dstDir);
+
+            // Step 4 — NOW unload the old plugin.
             if (p.Instance is not null) { await p.Instance.DisposeAsync(); p.Instance = null; }
             p.Ctx?.Unload(); p.Ctx = null;
             GC.Collect();
             GC.WaitForPendingFinalizers();
 
-            await CopyDirWithRetryAsync(temp, dstDir);
+            // Step 5 — remove stale entry so LoadOneAsync's duplicate-id guard won't block the reload
+            //           (guards against a dll rename between v1 and v2).
+            _plugins.Remove(id);
 
-            var dll = FindPluginDll(dstDir) ?? p.DllPath;
-            await LoadOneAsync(dll);
+            var installedDll = FindPluginDll(dstDir) ?? Path.Combine(dstDir, Path.GetFileName(newDll));
+            await LoadOneAsync(installedDll);
         }
         finally { TryDelete(temp); }
+    }
+
+    // Deletes all files and subdirectories inside dir without deleting dir itself.
+    static void ClearDir(string dir)
+    {
+        if (!Directory.Exists(dir)) return;
+        foreach (var f in Directory.GetFiles(dir)) File.Delete(f);
+        foreach (var d in Directory.GetDirectories(dir)) Directory.Delete(d, true);
     }
 
     static async Task CopyDirWithRetryAsync(string src, string dst)
@@ -180,6 +209,12 @@ public sealed class PluginManager
             }
             if (last is not null)
                 throw new PluginFetchException($"Could not overwrite '{target}' (file locked after unload)", last);
+        }
+        // Recursively copy subdirectories.
+        foreach (var subDir in Directory.GetDirectories(src))
+        {
+            var subDst = Path.Combine(dst, Path.GetFileName(subDir));
+            await CopyDirWithRetryAsync(subDir, subDst);
         }
     }
 
@@ -324,6 +359,8 @@ public sealed class PluginManager
         Directory.CreateDirectory(dst);
         foreach (var f in Directory.GetFiles(src))
             File.Copy(f, Path.Combine(dst, Path.GetFileName(f)), true);
+        foreach (var subDir in Directory.GetDirectories(src))
+            CopyDir(subDir, Path.Combine(dst, Path.GetFileName(subDir)));
     }
 
     static void TryDelete(string dir)

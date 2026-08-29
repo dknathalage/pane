@@ -131,4 +131,79 @@ public class PluginInstallUpdateTests
         Assert.Equal("2.0", mgr.List().Single().Metadata.Version);
         Assert.Single(mgr.Active());
     }
+
+    [Fact]
+    public async Task Update_with_bad_zip_leaves_old_plugin_loaded()
+    {
+        // Install v1 first.
+        var root = NewRoot();
+        var v1 = "https://example/v1.zip";
+        var bad = "https://example/bad.zip";
+        var mgr = MgrServingMany(root, new()
+        {
+            [v1] = ZipDir(FixtureDir("TestPlugin")),
+            // A zip that contains no plugin dll — just a text file.
+            [bad] = MakeZipWithNoPlugin(),
+        });
+
+        await mgr.InstallFromUrlAsync(v1);
+        Assert.Equal("1.0", mgr.List().Single().Metadata.Version);
+
+        // The update should fail because the archive has no plugin dll.
+        await Assert.ThrowsAsync<PluginFetchException>(() => mgr.UpdateAsync("test", bad));
+
+        // Old plugin must still be loaded and active at version 1.0.
+        var entry = mgr.List().Single();
+        Assert.Equal("1.0", entry.Metadata.Version);
+        Assert.Equal(PluginState.Enabled, entry.State);
+        Assert.Single(mgr.Active());
+    }
+
+    // Creates a zip that contains a text file but no .dll — simulates a corrupted/wrong update archive.
+    static byte[] MakeZipWithNoPlugin()
+    {
+        using var ms = new MemoryStream();
+        using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var e = zip.CreateEntry("readme.txt");
+            using var es = e.Open();
+            es.Write("not a plugin"u8);
+        }
+        return ms.ToArray();
+    }
+
+    [Fact]
+    public async Task InstallFromUrl_copies_subdirectory_files()
+    {
+        // Build a zip that has a plugin dll at the root AND a subdirectory file.
+        var root = NewRoot();
+        var pluginDir = FixtureDir("TestPlugin");
+        var zipBytes = ZipDirWithSubdir(pluginDir, "subdir", "extra.dat", "hello"u8.ToArray());
+        var mgr = MgrServing(root, zipBytes);
+
+        await mgr.InstallFromUrlAsync("https://example/testplugin.zip");
+
+        // The subdir file must have been copied recursively under plugins/test/subdir/extra.dat.
+        Assert.True(File.Exists(Path.Combine(root, "plugins", "test", "subdir", "extra.dat")));
+    }
+
+    // Zips dir's files + a synthetic subdirectory entry.
+    static byte[] ZipDirWithSubdir(string dir, string subdirName, string fileName, byte[] content)
+    {
+        using var ms = new MemoryStream();
+        using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var f in Directory.GetFiles(dir))
+            {
+                var e = zip.CreateEntry(Path.GetFileName(f));
+                using var es = e.Open();
+                using var fs = File.OpenRead(f);
+                fs.CopyTo(es);
+            }
+            var sub = zip.CreateEntry($"{subdirName}/{fileName}");
+            using var subEs = sub.Open();
+            subEs.Write(content);
+        }
+        return ms.ToArray();
+    }
 }
