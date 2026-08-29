@@ -17,7 +17,7 @@ public sealed class FilesPlugin : IPlugin
 
     public PluginMetadata Metadata { get; } = new(
         "files", "Files", "📁",
-        "1.1.0", // x-release-please-version
+        "1.1.1", // x-release-please-version
         "Search files and folders",
         new[] { "file", "folder", "find" }, ActivationKeyword);
 
