@@ -8,7 +8,7 @@ public sealed class VSCodePlugin : IPlugin
 {
     public PluginMetadata Metadata { get; } = new(
         "vscode", "VSCode Repos", "📂",
-        "1.1.1", // x-release-please-version
+        "1.2.0", // x-release-please-version
         "Open a repo from ~/repos in VSCode",
         new[] { "code", "repo", "vscode" });
 

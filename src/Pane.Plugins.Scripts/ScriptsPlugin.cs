@@ -8,7 +8,7 @@ public sealed class ScriptsPlugin : IPlugin
 {
     public PluginMetadata Metadata { get; } = new(
         "scripts", "Scripts", "📜",
-        "1.1.1", // x-release-please-version
+        "1.2.0", // x-release-please-version
         "Run shell scripts from your scripts folders",
         new[] { "script", "run", "sh" }, ">");
 
