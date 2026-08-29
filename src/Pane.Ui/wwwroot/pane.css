@@ -404,21 +404,6 @@ kbd {
     color: var(--danger);
 }
 
-/* "Install from folder…" — primary action pinned below the list */
-.plugins-pane > button:last-child {
-    align-self: flex-start;
-    margin: 12px 12px 4px;
-    background: var(--accent);
-    border-color: transparent;
-    color: #fff;
-}
-
-.plugins-pane > button:last-child:hover {
-    background: #339dff;
-    border-color: transparent;
-    color: #fff;
-}
-
 /* Save = primary within the per-plugin settings form */
 .plugin-settings .settings-actions button:first-child {
     background: var(--accent);

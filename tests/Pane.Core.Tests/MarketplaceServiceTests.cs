@@ -97,6 +97,75 @@ public class MarketplaceServiceTests
         return ms.ToArray();
     }
 
+    // Helpers shared by the version-state tests below.
+    static (MarketplaceService svc, PluginManager plugins) NewServiceWithPlugin(
+        string root, string catalogVersion)
+    {
+        var zip = ZipDir(FixtureDir("TestPlugin"));   // id "test", version "1.0"
+        var http = new HttpClient(new StubHandler(req =>
+        {
+            // Catalog request returns the catalog JSON; zip request returns the plugin.
+            if (req.RequestUri!.AbsolutePath.EndsWith(".zip"))
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(zip) };
+            var catalog = $$"""
+            { "name": "Pane Official", "plugins": [
+              { "id": "test", "name": "Test", "version": "{{catalogVersion}}",
+                "source": { "type": "url", "url": "https://x/test.zip" } } ] }
+            """;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(catalog) };
+        }));
+
+        var config = new MarketplaceConfigStore(
+            Path.Combine(root, "marketplaces.json"), "Pane Official",
+            "https://example.com/marketplace.json");
+        var installed = new InstalledStore(Path.Combine(root, "installed.json"));
+        var fetcher = new PluginFetcher(http);
+        var plugins = new PluginManager(root, store: null, fetcher: fetcher);
+        var svc = new MarketplaceService(http, config, installed, plugins, Path.Combine(root, "cache"));
+        return (svc, plugins);
+    }
+
+    [Fact]
+    public async Task Installed_at_same_version_as_catalog_shows_Installed_not_UpdateAvailable()
+    {
+        // This guards FIX 1: when the installed version string equals the catalog version string,
+        // the marketplace entry must be Installed, not UpdateAvailable.
+        var root = NewRoot();
+        var (svc, plugins) = NewServiceWithPlugin(root, "1.0");   // catalog: "1.0", fixture: "1.0"
+
+        // First, install the test plugin via the service so PluginManager knows about it.
+        var installEntry = new MarketplaceEntry(
+            new MarketplacePlugin("test", "Test", null, "🧪", "1.0", null, null, null,
+                new PluginSource("url", "https://x/test.zip", null)),
+            "Pane Official", MarketplaceItemState.Available, null);
+        await svc.InstallAsync(installEntry);
+
+        // Now fetch the catalog and assert state is Installed.
+        var entries = await svc.GetCatalogAsync();
+        var e = Assert.Single(entries);
+        Assert.Equal("test", e.Plugin.Id);
+        Assert.Equal(MarketplaceItemState.Installed, e.State);
+    }
+
+    [Fact]
+    public async Task Installed_at_lower_version_than_catalog_shows_UpdateAvailable()
+    {
+        // Guards the other direction: catalog "2.0" > installed "1.0" must be UpdateAvailable.
+        var root = NewRoot();
+        var (svc, plugins) = NewServiceWithPlugin(root, "2.0");   // catalog: "2.0", fixture: "1.0"
+
+        var installEntry = new MarketplaceEntry(
+            new MarketplacePlugin("test", "Test", null, "🧪", "1.0", null, null, null,
+                new PluginSource("url", "https://x/test.zip", null)),
+            "Pane Official", MarketplaceItemState.Available, null);
+        await svc.InstallAsync(installEntry);
+
+        var entries = await svc.GetCatalogAsync();
+        var e = Assert.Single(entries);
+        Assert.Equal("test", e.Plugin.Id);
+        Assert.Equal(MarketplaceItemState.UpdateAvailable, e.State);
+    }
+
     [Fact]
     public async Task Install_installs_plugin_and_records_provenance()
     {

@@ -8,7 +8,7 @@ namespace Pane.Plugins.Apps;
 public sealed class AppsPlugin : IPlugin
 {
     public PluginMetadata Metadata { get; } = new(
-        "apps", "Applications", "🚀", "1.0",
+        "apps", "Applications", "🚀", "1.0.0",
         "Launch installed applications",
         new[] { "app", "open", "launch" });
 
