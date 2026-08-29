@@ -9,7 +9,7 @@ public sealed class AppsPlugin : IPlugin
 {
     public PluginMetadata Metadata { get; } = new(
         "apps", "Applications", "🚀",
-        "1.1.1", // x-release-please-version
+        "1.2.0", // x-release-please-version
         "Launch installed applications",
         new[] { "app", "open", "launch" });
 

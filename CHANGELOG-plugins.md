@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/dknathalage/pane/compare/plugins-v1.1.1...plugins-v1.2.0) (2026-08-29)
+
+
+### Features
+
+* **files:** debounce file search + wildcard (* ?) support ([608cfe2](https://github.com/dknathalage/pane/commit/608cfe24cff3b6e8398819dff467a50e36f46052))
+* **files:** debounce searches and support * / ? wildcards ([1d039f5](https://github.com/dknathalage/pane/commit/1d039f5de6b4ae8a5df0e2dcf9dc8defbc7197b2))
+
 ## [1.1.1](https://github.com/dknathalage/pane/compare/plugins-v1.1.0...plugins-v1.1.1) (2026-08-29)
 
 
