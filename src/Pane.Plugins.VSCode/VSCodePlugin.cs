@@ -7,7 +7,8 @@ namespace Pane.Plugins.VSCode;
 public sealed class VSCodePlugin : IPlugin
 {
     public PluginMetadata Metadata { get; } = new(
-        "vscode", "VSCode Repos", "📂", "1.0.0",
+        "vscode", "VSCode Repos", "📂",
+        "1.1.0", // x-release-please-version
         "Open a repo from ~/repos in VSCode",
         new[] { "code", "repo", "vscode" });
 
