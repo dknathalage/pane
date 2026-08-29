@@ -8,7 +8,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/dist/plugins-release"
 mkdir -p "$OUT"
 
-for p in Apps Calculator Scripts VSCode; do
+for p in Apps Calculator Scripts VSCode Files; do
   echo "==> Building Pane.Plugins.$p (Release)"
   dotnet build "$ROOT/src/Pane.Plugins.$p" -c Release --nologo -v q >/dev/null
   STAGE="$(mktemp -d)"

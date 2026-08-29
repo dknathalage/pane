@@ -26,6 +26,17 @@
       "source": { "type": "url", "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.0.0/Pane.Plugins.Calculator.zip" }
     },
     {
+      "id": "files",
+      "name": "Files",
+      "description": "Search files and folders",
+      "icon": "📁",
+      "version": "1.0.0",
+      "category": "system",
+      "author": "pane",
+      "homepage": "https://github.com/dknathalage/pane",
+      "source": { "type": "url", "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.0.0/Pane.Plugins.Files.zip" }
+    },
+    {
       "id": "scripts",
       "name": "Scripts",
       "description": "Run user scripts",
