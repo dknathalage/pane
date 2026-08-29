@@ -17,7 +17,7 @@
       "homepage": "https://github.com/dknathalage/pane",
       "source": {
         "type": "url",
-        "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.0.0/Pane.Plugins.Apps.zip"
+        "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.1.0/Pane.Plugins.Apps.zip"
       }
     },
     {
@@ -31,7 +31,7 @@
       "homepage": "https://github.com/dknathalage/pane",
       "source": {
         "type": "url",
-        "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.0.0/Pane.Plugins.Calculator.zip"
+        "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.1.0/Pane.Plugins.Calculator.zip"
       }
     },
     {
@@ -45,7 +45,7 @@
       "homepage": "https://github.com/dknathalage/pane",
       "source": {
         "type": "url",
-        "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.0.0/Pane.Plugins.Files.zip"
+        "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.1.0/Pane.Plugins.Files.zip"
       }
     },
     {
@@ -59,7 +59,7 @@
       "homepage": "https://github.com/dknathalage/pane",
       "source": {
         "type": "url",
-        "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.0.0/Pane.Plugins.Scripts.zip"
+        "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.1.0/Pane.Plugins.Scripts.zip"
       }
     },
     {
@@ -73,7 +73,7 @@
       "homepage": "https://github.com/dknathalage/pane",
       "source": {
         "type": "url",
-        "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.0.0/Pane.Plugins.VSCode.zip"
+        "url": "https://github.com/dknathalage/pane/releases/download/plugins-v1.1.0/Pane.Plugins.VSCode.zip"
       }
     }
   ]
