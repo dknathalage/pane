@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1](https://github.com/dknathalage/pane/compare/plugins-v1.1.0...plugins-v1.1.1) (2026-08-29)
+
+
+### Bug Fixes
+
+* plugin updates never clear — sync metadata version with catalog ([0a05b83](https://github.com/dknathalage/pane/commit/0a05b837694a4eb74dad0398c3abaafc3e2a08a9))
+* **plugins:** keep plugin metadata version in sync with the catalog ([0bf2db8](https://github.com/dknathalage/pane/commit/0bf2db82ecc3474ffdeb9dc066e54256f89794a1))
+
 ## [1.1.0](https://github.com/dknathalage/pane/compare/plugins-v1.0.0...plugins-v1.1.0) (2026-08-29)
 
 
