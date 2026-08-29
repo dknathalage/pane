@@ -16,9 +16,12 @@ namespace Pane.App;
 internal sealed class AppWindowController : IWindowController
 {
     const int OffScreen = -32000;
+    const int MinHeight = 72;    // just the search row
+    const int MaxHeight = 520;   // beyond this the results list scrolls
 
     private PhotinoWindow? _window;
     private volatile bool _isVisible;
+    private int _height;
 
     /// <summary>Attach the real window once it exists (post-Build, pre-Run).</summary>
     public void Attach(PhotinoWindow window, bool startVisible)
@@ -52,5 +55,15 @@ internal sealed class AppWindowController : IWindowController
     {
         if (_isVisible) Hide();
         else Show();
+    }
+
+    public void SetHeight(int px)
+    {
+        if (_window is null) return;
+        var clamped = Math.Clamp(px, MinHeight, MaxHeight);
+        if (clamped == _height) return;   // avoid redundant native calls (and re-centre jitter)
+        _height = clamped;
+        _window.SetHeight(clamped);
+        if (_isVisible) _window.Centered = true;   // keep it centred as it grows/shrinks
     }
 }
