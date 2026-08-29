@@ -119,4 +119,72 @@ public class FilesPluginTests
         Assert.Equal(50, searcher.LastMax);
         Assert.Equal("report", searcher.LastTerms);
     }
+
+    // ── Debounce: the search waits out a quiet period on the query token, so a
+    //    newer keystroke (which cancels the token) never reaches the index. ──
+
+    [Fact]
+    public async Task Does_not_search_when_cancelled_during_debounce()
+    {
+        var searcher = new FakeSearcher(new FileHit(Path.Combine(Home, "report.txt"), false));
+        var plugin = new FilesPlugin(searcher, TimeSpan.FromMilliseconds(50));
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            await foreach (var _ in plugin.QueryAsync(Slash("report"), cts.Token)) { }
+        });
+
+        Assert.Equal(0, searcher.Calls);
+    }
+
+    [Fact]
+    public async Task Searches_after_debounce_elapses()
+    {
+        var searcher = new FakeSearcher(new FileHit(Path.Combine(Home, "report.txt"), false));
+        var plugin = new FilesPlugin(searcher, TimeSpan.FromMilliseconds(10));
+
+        var results = await Run(plugin, Slash("report"));
+
+        Assert.Single(results);
+        Assert.Equal(1, searcher.Calls);
+    }
+
+    // ── Wildcards: * and ? in the query feed the longest literal run to the
+    //    index for candidates; the host glob-matcher does the precise filtering. ──
+
+    [Fact]
+    public async Task Wildcard_suffix_feeds_longest_literal_run_to_searcher()
+    {
+        var searcher = new FakeSearcher(new FileHit(Path.Combine(Home, "report.pdf"), false));
+        var plugin = new FilesPlugin(searcher);
+
+        await Run(plugin, Slash("*.pdf"));
+
+        Assert.Equal(".pdf", searcher.LastTerms);
+    }
+
+    [Fact]
+    public async Task Wildcard_prefix_feeds_literal_prefix_to_searcher()
+    {
+        var searcher = new FakeSearcher(new FileHit(Path.Combine(Home, "report.pdf"), false));
+        var plugin = new FilesPlugin(searcher);
+
+        await Run(plugin, Slash("report*"));
+
+        Assert.Equal("report", searcher.LastTerms);
+    }
+
+    [Fact]
+    public async Task Wildcard_without_a_two_char_literal_run_does_not_search()
+    {
+        var searcher = new FakeSearcher(new FileHit(Path.Combine(Home, "a.pdf"), false));
+        var plugin = new FilesPlugin(searcher);
+
+        var results = await Run(plugin, Slash("*a*"));   // longest literal run "a" is 1 char
+
+        Assert.Empty(results);
+        Assert.Equal(0, searcher.Calls);
+    }
 }

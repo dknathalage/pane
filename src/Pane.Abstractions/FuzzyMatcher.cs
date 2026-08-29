@@ -20,6 +20,12 @@ public sealed class FuzzyMatcher : IFuzzyMatcher
         if (string.IsNullOrEmpty(query)) return true;
         if (string.IsNullOrEmpty(target)) return false;
 
+        // A query containing wildcards is matched as an anchored, case-insensitive
+        // glob against the whole target (e.g. "*.pdf", "report?.md") rather than a
+        // fuzzy subsequence.
+        if (query.IndexOfAny(Wildcards) >= 0)
+            return TryGlob(query, target, out score);
+
         var q = query.ToLowerInvariant();
         var t = target.ToLowerInvariant();
         var matched = new List<int>(q.Length);
@@ -47,6 +53,26 @@ public sealed class FuzzyMatcher : IFuzzyMatcher
 
         score = Math.Max(total, 0.01);                   // any real match scores > 0
         positions = matched;
+        return true;
+    }
+
+    static readonly char[] Wildcards = { '*', '?' };
+
+    // Anchored glob match: * → any run, ? → exactly one char. Score reflects how
+    // many literal (non-wildcard) chars the pattern pins down, so more specific
+    // patterns rank above looser ones.
+    static bool TryGlob(string query, string target, out double score)
+    {
+        score = 0;
+        var pattern = "^" + System.Text.RegularExpressions.Regex.Escape(query)
+            .Replace("\\*", ".*")
+            .Replace("\\?", ".") + "$";
+        if (!System.Text.RegularExpressions.Regex.IsMatch(
+                target, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            return false;
+
+        var literals = query.Count(c => c != '*' && c != '?');
+        score = Math.Max(literals, 0.01);
         return true;
     }
 

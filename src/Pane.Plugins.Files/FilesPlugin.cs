@@ -14,6 +14,7 @@ public sealed class FilesPlugin : IPlugin
     const string ActivationKeyword = "/";
     const int MinTermLength = 2;
     const int MaxResults = 50;
+    static readonly TimeSpan DefaultDebounce = TimeSpan.FromMilliseconds(150);
 
     public PluginMetadata Metadata { get; } = new(
         "files", "Files", "📁",
@@ -22,12 +23,20 @@ public sealed class FilesPlugin : IPlugin
         new[] { "file", "folder", "find" }, ActivationKeyword);
 
     IFileSearcher? _searcher;
+    readonly TimeSpan _debounce;
 
     /// <summary>Production entry point; the real searcher is resolved at init.</summary>
-    public FilesPlugin() { }
+    public FilesPlugin() => _debounce = DefaultDebounce;
 
-    /// <summary>Test seam: inject a searcher directly.</summary>
-    public FilesPlugin(IFileSearcher searcher) => _searcher = searcher;
+    /// <summary>Test seam: inject a searcher; no debounce so tests stay fast.</summary>
+    public FilesPlugin(IFileSearcher searcher) : this(searcher, TimeSpan.Zero) { }
+
+    /// <summary>Test seam: inject a searcher and an explicit debounce delay.</summary>
+    public FilesPlugin(IFileSearcher searcher, TimeSpan debounce)
+    {
+        _searcher = searcher;
+        _debounce = debounce;
+    }
 
     public Task InitializeAsync(IPluginContext ctx)
     {
@@ -44,7 +53,17 @@ public sealed class FilesPlugin : IPlugin
         var terms = q.Terms.Trim();
         if (terms.Length < MinTermLength || _searcher is null) yield break;
 
-        foreach (var hit in _searcher.Search(terms, MaxResults, ct))
+        // Wildcard queries feed the longest literal run to the index for
+        // candidates; the host glob-matcher does the precise name filtering.
+        var seed = LongestLiteralRun(terms);
+        if (seed.Length < MinTermLength) yield break;
+
+        // Debounce: wait out a quiet period before hitting the index. A newer
+        // keystroke cancels this token, so the stale query never spawns a search.
+        if (_debounce > TimeSpan.Zero)
+            await Task.Delay(_debounce, ct);
+
+        foreach (var hit in _searcher.Search(seed, MaxResults, ct))
         {
             var path = hit.FullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var name = Path.GetFileName(path);
@@ -56,6 +75,21 @@ public sealed class FilesPlugin : IPlugin
             yield return new PaneResult(name, subtitle, icon, 0, () => Open(full), full);
         }
         await Task.CompletedTask;
+    }
+
+    // The longest maximal run of non-wildcard characters — the most selective
+    // literal to hand the index. For a plain query this is the whole string.
+    static string LongestLiteralRun(string terms)
+    {
+        var best = "";
+        for (int i = 0; i < terms.Length;)
+        {
+            if (terms[i] is '*' or '?') { i++; continue; }
+            int start = i;
+            while (i < terms.Length && terms[i] is not ('*' or '?')) i++;
+            if (i - start > best.Length) best = terms[start..i];
+        }
+        return best;
     }
 
     // Replace the home-directory prefix with "~" to keep subtitles short.
