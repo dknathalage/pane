@@ -10,10 +10,4 @@
     <Project Path="tests/Pane.Abstractions.Tests/Pane.Abstractions.Tests.csproj" />
     <Project Path="tests/Pane.Core.Tests/Pane.Core.Tests.csproj" />
   </Folder>
-  <Folder Name="/tests/Pane.Core.Tests/" />
-  <Folder Name="/tests/Pane.Core.Tests/Fixtures/">
-    <Project Path="tests/Pane.Core.Tests/Fixtures/TestPlugin/TestPlugin.csproj" />
-    <Project Path="tests/Pane.Core.Tests/Fixtures/TestPluginV2/TestPluginV2.csproj" />
-    <Project Path="tests/Pane.Core.Tests/Fixtures/ThrowingPlugin/ThrowingPlugin.csproj" />
-  </Folder>
 </Solution>
