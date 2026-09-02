@@ -1,12 +1,31 @@
-using Pane.Abstractions;
+using Pane.Core.Contracts;
 using Pane.Core.Query;
 using Xunit;
+
+public class ResultRankerFeatureDescriptorTests
+{
+    static readonly FeatureDescriptor Calc =
+        new("calc", "Calculator", "🧮", "=", 10, new[] { "calc", "math", "=" });
+
+    [Fact]
+    public void EmptyQuery_KeepsResult_ScoredByBaseAndPriority()
+    {
+        var ranker = new ResultRanker(new FuzzyMatcher());
+        var r = new PaneResult("= 4", "Copy", "🧮", 100, () => Task.CompletedTask, "2+2");
+        var q = new PaneQuery("=2+2", "=", "2+2");
+
+        var scored = ranker.Rank(q, Calc, new[] { r }).ToList();
+
+        Assert.Single(scored);
+        Assert.Equal("calc", scored[0].PluginId);
+    }
+}
 
 public class ResultRankerTests
 {
     readonly ResultRanker _ranker = new(new FuzzyMatcher());
-    static PluginMetadata Meta(string kw = "") =>
-        new("p", "P", "🔌", "1", "d", string.IsNullOrEmpty(kw) ? Array.Empty<string>() : new[] { kw });
+    static FeatureDescriptor Meta(string kw = "") =>
+        new("p", "P", "🔌", null, 0, string.IsNullOrEmpty(kw) ? Array.Empty<string>() : new[] { kw });
 
     static PaneResult R(string title, double baseScore = 0, string? search = null) =>
         new(title, "", "", baseScore, () => Task.CompletedTask, search);
@@ -48,7 +67,7 @@ public class ResultRankerTests
     public void Token_matching_plugin_keyword_lets_other_token_match_the_item()
     {
         // "tray" hits the title; "code" hits the plugin's keyword → still matches.
-        var meta = new PluginMetadata("vscode", "VSCode Repos", "📂", "1", "open repos",
+        var meta = new FeatureDescriptor("vscode", "VSCode Repos", "📂", null, 0,
             new[] { "code", "repo", "vscode" });
         var q = new PaneQuery("tray code", null, "tray code");
         var ranked = _ranker.Rank(q, meta, new[] { R("cloudtray", search: "/Users/x/repos/cloudtray") }).ToList();

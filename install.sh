@@ -4,9 +4,8 @@
 #   ./install.sh            Download the latest prebuilt release from the repo
 #   ./install.sh --local    Build from this checkout instead
 #
-# Either way it installs Pane.app to ~/Applications, deploys the bundled
-# plugins to ~/.config/pane/plugins, registers a LaunchAgent so the global
-# hotkey is live at login, and launches the app.
+# Either way it installs Pane.app to ~/Applications, registers a LaunchAgent
+# so the global hotkey is live at login, and launches the app.
 #
 # Env overrides:
 #   PANE_REPO   GitHub repo to download releases from (default dknathalage/pane)
@@ -17,7 +16,6 @@ REPO="${PANE_REPO:-dknathalage/pane}"
 APPHOME="$HOME/Applications"
 APP="$APPHOME/Pane.app"
 EXEC="$APP/Contents/MacOS/Pane.App"          # CFBundleExecutable (self-contained apphost)
-PLUGINS_DEST="$HOME/.config/pane/plugins"
 LABEL="com.pane.launcher"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 RID="$(uname -m | sed 's/^arm64$/osx-arm64/; s/^x86_64$/osx-x64/')"
@@ -51,7 +49,6 @@ else
 fi
 
 SRC_APP="$TMP/dist/Pane.app"
-SRC_PLUGINS="$TMP/dist/plugins"
 [ -d "$SRC_APP" ] || { echo "error: no Pane.app produced/downloaded" >&2; exit 1; }
 
 echo "==> Stopping any running Pane"
@@ -65,10 +62,6 @@ rm -rf "$APP"
 cp -R "$SRC_APP" "$APP"
 # Downloaded bundles are quarantined; clear it so Gatekeeper doesn't block launch.
 xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
-
-echo "==> Deploying plugins → $PLUGINS_DEST"
-mkdir -p "$PLUGINS_DEST"
-[ -d "$SRC_PLUGINS" ] && cp -R "$SRC_PLUGINS/." "$PLUGINS_DEST/"
 
 echo "==> Registering LaunchAgent → $PLIST"
 mkdir -p "$(dirname "$PLIST")"

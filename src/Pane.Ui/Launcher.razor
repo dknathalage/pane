@@ -1,4 +1,3 @@
-@inject PluginManager Manager
 @inject QueryDispatcher Dispatcher
 @inject IWindowController Window
 @inject IFuzzyMatcher Fuzzy
@@ -48,7 +47,7 @@
             <div class="pane-empty">
                 @if (string.IsNullOrWhiteSpace(_text))
                 {
-                    <span>Start typing to search — or type <b>settings</b> (or press <kbd>⌘</kbd><kbd>,</kbd>) to manage plugins.</span>
+                    <span>Start typing to search — or type <b>settings</b> (or press <kbd>⌘</kbd><kbd>,</kbd>) to manage features.</span>
                 }
                 else
                 {
@@ -63,7 +62,7 @@
     // The Settings screen is reached like any other result: search "settings"
     // (or the ⌘, shortcut). No dedicated button.
     static readonly BuiltinCommand SettingsCommand =
-        new("settings", "Settings", "Manage plugins & marketplaces",
+        new("settings", "Settings", "Manage features",
             new[] { "settings", "preferences", "config" });
 
     string _text = "";
@@ -129,14 +128,9 @@
         old?.Cancel();
         old?.Dispose();
 
-        var plugins = Manager.List()
-            .Where(e => e.State == PluginState.Enabled && e.Instance is not null)
-            .Select(e => (e.Metadata, e.Instance!))
-            .ToList();
-
         try
         {
-            var results = (await Dispatcher.DispatchAsync(_text, plugins, token)).ToList();
+            var results = (await Dispatcher.DispatchAsync(_text, token)).ToList();
             AddSettingsResult(results);
             _results = results;
             _selected = 0;

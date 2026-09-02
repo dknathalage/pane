@@ -1,9 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
-using Pane.Abstractions;
+using Pane.Core.Contracts;
 using Pane.App;
 using Pane.Core;
-using Pane.Core.Marketplace;
-using Pane.Core.Plugins;
+using Pane.Core.Features.Apps;
+using Pane.Core.Features.Calculator;
+using Pane.Core.Features.Files;
+using Pane.Core.Features.Scripts;
+using Pane.Core.Features.VSCode;
 using Pane.Core.Query;
 using Pane.Core.Settings;
 using Pane.Platform;
@@ -12,9 +15,7 @@ using Photino.Blazor;
 // ── Paths ──────────────────────────────────────────────────────────────────
 var home        = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 var dataRoot    = Path.Combine(home, ".config", "pane");
-var pluginsRoot = Path.Combine(dataRoot, "plugins");
 Directory.CreateDirectory(dataRoot);
-Directory.CreateDirectory(pluginsRoot);
 
 // ── Builder ────────────────────────────────────────────────────────────────
 // Read our own flags first; Photino's CreateDefault crashes on ANY unknown
@@ -25,35 +26,25 @@ var builder = PhotinoBlazorAppBuilder.CreateDefault(Array.Empty<string>());
 // ── DI registrations ───────────────────────────────────────────────────────
 builder.Services.AddSingleton<IFuzzyMatcher, FuzzyMatcher>();
 
-// SettingsStore is a plain class; register as singleton instance so PluginManager can share it.
 var settingsStorePath = Path.Combine(dataRoot, "settings.json");
 var settingsStore = new SettingsStore(settingsStorePath);
 builder.Services.AddSingleton(settingsStore);
 
-builder.Services.AddSingleton(new HttpClient { Timeout = TimeSpan.FromSeconds(60) });
-builder.Services.AddSingleton(sp => new PluginFetcher(sp.GetRequiredService<HttpClient>()));
+// Features (built-in; no dynamic loading).
+builder.Services.AddSingleton(new AppsFeature(Path.Combine(dataRoot, "data", "apps")));
+builder.Services.AddSingleton<FilesFeature>();
+builder.Services.AddSingleton<CalculatorFeature>();
+builder.Services.AddSingleton<ScriptsFeature>();
+builder.Services.AddSingleton<VSCodeFeature>();
 
-builder.Services.AddSingleton(sp =>
-    new PluginManager(dataRoot,
-        sp.GetRequiredService<SettingsStore>(),
-        sp.GetRequiredService<PluginFetcher>()));
-
-// ── Marketplace ────────────────────────────────────────────────────────────
-const string DefaultMarketplaceName = "Pane Official";
-const string DefaultMarketplaceSource = "https://github.com/dknathalage/pane";
-
-builder.Services.AddSingleton(new MarketplaceConfigStore(
-    Path.Combine(dataRoot, "marketplaces.json"), DefaultMarketplaceName, DefaultMarketplaceSource));
-builder.Services.AddSingleton(new InstalledStore(Path.Combine(dataRoot, "installed.json")));
-builder.Services.AddSingleton(sp => new MarketplaceService(
-    sp.GetRequiredService<HttpClient>(),
-    sp.GetRequiredService<MarketplaceConfigStore>(),
-    sp.GetRequiredService<InstalledStore>(),
-    sp.GetRequiredService<PluginManager>(),
-    Path.Combine(dataRoot, "marketplace-cache")));
-
-builder.Services.AddSingleton(sp =>
-    new QueryDispatcher(sp.GetRequiredService<IFuzzyMatcher>()));
+builder.Services.AddSingleton(sp => new QueryDispatcher(
+    sp.GetRequiredService<IFuzzyMatcher>(),
+    sp.GetRequiredService<SettingsStore>(),
+    sp.GetRequiredService<AppsFeature>(),
+    sp.GetRequiredService<FilesFeature>(),
+    sp.GetRequiredService<CalculatorFeature>(),
+    sp.GetRequiredService<ScriptsFeature>(),
+    sp.GetRequiredService<VSCodeFeature>()));
 
 builder.Services.AddSingleton<IGlobalHotkey, SharpHookGlobalHotkey>();
 
@@ -96,9 +87,13 @@ var windowController = app.Services.GetRequiredService<AppWindowController>();
 windowController.Attach(app.MainWindow, startVisible: true);
 
 // ── Post-startup tasks ─────────────────────────────────────────────────────
-// Load plugins before the message loop starts.
-var pluginManager = app.Services.GetRequiredService<PluginManager>();
-await pluginManager.LoadAllAsync(pluginsRoot);
+// Initialize built-in features before the message loop starts.
+await app.Services.GetRequiredService<AppsFeature>().InitializeAsync();
+await app.Services.GetRequiredService<FilesFeature>().InitializeAsync();
+// calc/scripts/vscode InitializeAsync are no-ops but call for symmetry:
+await app.Services.GetRequiredService<CalculatorFeature>().InitializeAsync();
+await app.Services.GetRequiredService<ScriptsFeature>().InitializeAsync();
+await app.Services.GetRequiredService<VSCodeFeature>().InitializeAsync();
 
 // ── Global hotkey + menu bar ───────────────────────────────────────────────
 var settings = settingsStore.Load();

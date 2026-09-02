@@ -1,4 +1,4 @@
-using Pane.Abstractions;
+using Pane.Core.Contracts;
 
 namespace Pane.Core.Query;
 

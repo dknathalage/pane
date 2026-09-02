@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Pane.Abstractions;
+using Pane.Core.Contracts;
 using Pane.Core.Query;
 using Xunit;
 
