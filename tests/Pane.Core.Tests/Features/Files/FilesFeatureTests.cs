@@ -1,8 +1,8 @@
 using Pane.Abstractions;
-using Pane.Plugins.Files;
+using Pane.Core.Features.Files;
 using Xunit;
 
-public class FilesPluginTests
+public class FilesFeatureTests
 {
     // Records how it was called and returns canned hits.
     sealed class FakeSearcher : IFileSearcher
@@ -24,10 +24,10 @@ public class FilesPluginTests
 
     static PaneQuery Slash(string terms) => new($"/{terms}", "/", terms);
 
-    static async Task<List<PaneResult>> Run(IPlugin plugin, PaneQuery q)
+    static async Task<List<PaneResult>> Run(FilesFeature feature, PaneQuery q)
     {
         var results = new List<PaneResult>();
-        await foreach (var r in plugin.QueryAsync(q, CancellationToken.None))
+        await foreach (var r in feature.QueryAsync(q, CancellationToken.None))
             results.Add(r);
         return results;
     }
@@ -38,7 +38,7 @@ public class FilesPluginTests
     public async Task Does_not_search_without_the_keyword()
     {
         var searcher = new FakeSearcher(new FileHit(Path.Combine(Home, "report.txt"), false));
-        var plugin = new FilesPlugin(searcher);
+        var plugin = new FilesFeature(searcher);
 
         // No keyword: dispatcher passes the raw terms with Keyword == null.
         var results = await Run(plugin, new PaneQuery("report", null, "report"));
@@ -51,7 +51,7 @@ public class FilesPluginTests
     public async Task Does_not_search_for_terms_shorter_than_two_chars()
     {
         var searcher = new FakeSearcher(new FileHit(Path.Combine(Home, "a.txt"), false));
-        var plugin = new FilesPlugin(searcher);
+        var plugin = new FilesFeature(searcher);
 
         var results = await Run(plugin, Slash("a"));
 
@@ -65,7 +65,7 @@ public class FilesPluginTests
         var searcher = new FakeSearcher(
             new FileHit(Path.Combine(Home, "Projects"), true),
             new FileHit(Path.Combine(Home, "notes.md"), false));
-        var plugin = new FilesPlugin(searcher);
+        var plugin = new FilesFeature(searcher);
 
         var results = await Run(plugin, Slash("proj"));
 
@@ -77,7 +77,7 @@ public class FilesPluginTests
     public async Task Title_is_the_leaf_name()
     {
         var searcher = new FakeSearcher(new FileHit(Path.Combine(Home, "Docs", "notes.md"), false));
-        var plugin = new FilesPlugin(searcher);
+        var plugin = new FilesFeature(searcher);
 
         var results = await Run(plugin, Slash("notes"));
 
@@ -89,7 +89,7 @@ public class FilesPluginTests
     {
         var full = Path.Combine(Home, "Docs", "notes.md");
         var searcher = new FakeSearcher(new FileHit(full, false));
-        var plugin = new FilesPlugin(searcher);
+        var plugin = new FilesFeature(searcher);
 
         var results = await Run(plugin, Slash("notes"));
 
@@ -101,7 +101,7 @@ public class FilesPluginTests
     {
         var full = Path.Combine(Home, "Docs", "notes.md");
         var searcher = new FakeSearcher(new FileHit(full, false));
-        var plugin = new FilesPlugin(searcher);
+        var plugin = new FilesFeature(searcher);
 
         var results = await Run(plugin, Slash("notes"));
 
@@ -112,7 +112,7 @@ public class FilesPluginTests
     public async Task Caps_results_by_passing_a_limit_to_the_searcher()
     {
         var searcher = new FakeSearcher(new FileHit(Path.Combine(Home, "report.txt"), false));
-        var plugin = new FilesPlugin(searcher);
+        var plugin = new FilesFeature(searcher);
 
         await Run(plugin, Slash("report"));
 
@@ -127,7 +127,7 @@ public class FilesPluginTests
     public async Task Does_not_search_when_cancelled_during_debounce()
     {
         var searcher = new FakeSearcher(new FileHit(Path.Combine(Home, "report.txt"), false));
-        var plugin = new FilesPlugin(searcher, TimeSpan.FromMilliseconds(50));
+        var plugin = new FilesFeature(searcher, TimeSpan.FromMilliseconds(50));
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
@@ -143,7 +143,7 @@ public class FilesPluginTests
     public async Task Searches_after_debounce_elapses()
     {
         var searcher = new FakeSearcher(new FileHit(Path.Combine(Home, "report.txt"), false));
-        var plugin = new FilesPlugin(searcher, TimeSpan.FromMilliseconds(10));
+        var plugin = new FilesFeature(searcher, TimeSpan.FromMilliseconds(10));
 
         var results = await Run(plugin, Slash("report"));
 
@@ -158,7 +158,7 @@ public class FilesPluginTests
     public async Task Wildcard_suffix_feeds_longest_literal_run_to_searcher()
     {
         var searcher = new FakeSearcher(new FileHit(Path.Combine(Home, "report.pdf"), false));
-        var plugin = new FilesPlugin(searcher);
+        var plugin = new FilesFeature(searcher);
 
         await Run(plugin, Slash("*.pdf"));
 
@@ -169,7 +169,7 @@ public class FilesPluginTests
     public async Task Wildcard_prefix_feeds_literal_prefix_to_searcher()
     {
         var searcher = new FakeSearcher(new FileHit(Path.Combine(Home, "report.pdf"), false));
-        var plugin = new FilesPlugin(searcher);
+        var plugin = new FilesFeature(searcher);
 
         await Run(plugin, Slash("report*"));
 
@@ -180,7 +180,7 @@ public class FilesPluginTests
     public async Task Wildcard_without_a_two_char_literal_run_does_not_search()
     {
         var searcher = new FakeSearcher(new FileHit(Path.Combine(Home, "a.pdf"), false));
-        var plugin = new FilesPlugin(searcher);
+        var plugin = new FilesFeature(searcher);
 
         var results = await Run(plugin, Slash("*a*"));   // longest literal run "a" is 1 char
 

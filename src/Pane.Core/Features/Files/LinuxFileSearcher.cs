@@ -1,4 +1,4 @@
-namespace Pane.Plugins.Files;
+namespace Pane.Core.Features.Files;
 
 /// <summary>
 /// Linux backend: queries the updatedb index via <c>plocate</c>, falling back to

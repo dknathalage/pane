@@ -2,7 +2,6 @@ using Pane.Abstractions;
 using Pane.Core.Marketplace;
 using Pane.Plugins.Apps;
 using Pane.Plugins.Calculator;
-using Pane.Plugins.Files;
 using Pane.Plugins.Scripts;
 using Pane.Plugins.VSCode;
 using Xunit;
@@ -18,7 +17,6 @@ public class MarketplaceVersionConsistencyTests
     {
         new object[] { new AppsPlugin().Metadata },
         new object[] { new CalculatorPlugin().Metadata },
-        new object[] { new FilesPlugin().Metadata },
         new object[] { new ScriptsPlugin().Metadata },
         new object[] { new VSCodePlugin().Metadata },
     };

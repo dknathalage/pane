@@ -3,42 +3,39 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Pane.Abstractions;
 
-namespace Pane.Plugins.Files;
+namespace Pane.Core.Features.Files;
 
 /// <summary>
 /// Searches the OS's native file index for files and folders. Keyword-activated
 /// with "/" (e.g. "/report") so it never floods the launcher on ordinary queries.
 /// </summary>
-public sealed class FilesPlugin : IPlugin
+public sealed class FilesFeature
 {
     const string ActivationKeyword = "/";
     const int MinTermLength = 2;
     const int MaxResults = 50;
     static readonly TimeSpan DefaultDebounce = TimeSpan.FromMilliseconds(150);
 
-    public PluginMetadata Metadata { get; } = new(
-        "files", "Files", "📁",
-        "1.2.0", // x-release-please-version
-        "Search files and folders",
-        new[] { "file", "folder", "find" }, ActivationKeyword);
+    public FeatureDescriptor Descriptor { get; } = new(
+        "files", "Files", "📁", "/", 0, new[] { "file", "folder", "find" });
 
     IFileSearcher? _searcher;
     readonly TimeSpan _debounce;
 
     /// <summary>Production entry point; the real searcher is resolved at init.</summary>
-    public FilesPlugin() => _debounce = DefaultDebounce;
+    public FilesFeature() => _debounce = DefaultDebounce;
 
     /// <summary>Test seam: inject a searcher; no debounce so tests stay fast.</summary>
-    public FilesPlugin(IFileSearcher searcher) : this(searcher, TimeSpan.Zero) { }
+    public FilesFeature(IFileSearcher searcher) : this(searcher, TimeSpan.Zero) { }
 
     /// <summary>Test seam: inject a searcher and an explicit debounce delay.</summary>
-    public FilesPlugin(IFileSearcher searcher, TimeSpan debounce)
+    public FilesFeature(IFileSearcher searcher, TimeSpan debounce)
     {
         _searcher = searcher;
         _debounce = debounce;
     }
 
-    public Task InitializeAsync(IPluginContext ctx)
+    public Task InitializeAsync()
     {
         _searcher ??= FileSearcherFactory.Create();
         return Task.CompletedTask;
@@ -124,5 +121,4 @@ public sealed class FilesPlugin : IPlugin
         return Task.CompletedTask;
     }
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

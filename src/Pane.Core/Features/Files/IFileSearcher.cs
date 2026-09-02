@@ -1,4 +1,4 @@
-namespace Pane.Plugins.Files;
+namespace Pane.Core.Features.Files;
 
 /// <summary>A single filesystem match returned by an <see cref="IFileSearcher"/>.</summary>
 /// <param name="FullPath">Absolute path to the file or folder.</param>

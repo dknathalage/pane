@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Pane.Plugins.Files;
+namespace Pane.Core.Features.Files;
 
 /// <summary>Picks the native file-index backend for the current OS.</summary>
 public static class FileSearcherFactory

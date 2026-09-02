@@ -1,4 +1,4 @@
-namespace Pane.Plugins.Files;
+namespace Pane.Core.Features.Files;
 
 /// <summary>macOS backend: queries Spotlight via <c>mdfind</c>, scoped to $HOME.</summary>
 public sealed class MacFileSearcher : IFileSearcher

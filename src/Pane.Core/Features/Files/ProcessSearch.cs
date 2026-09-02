@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Pane.Plugins.Files;
+namespace Pane.Core.Features.Files;
 
 /// <summary>Shared helper: run an index CLI, read newline-separated paths.</summary>
 static class ProcessSearch
