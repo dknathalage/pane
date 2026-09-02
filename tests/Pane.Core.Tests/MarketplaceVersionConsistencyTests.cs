@@ -1,7 +1,6 @@
 using Pane.Abstractions;
 using Pane.Core.Marketplace;
 using Pane.Plugins.Apps;
-using Pane.Plugins.VSCode;
 using Xunit;
 
 // Each bundled plugin declares its version in PluginMetadata; marketplace.json
@@ -14,7 +13,6 @@ public class MarketplaceVersionConsistencyTests
     public static IEnumerable<object[]> BundledPlugins() => new[]
     {
         new object[] { new AppsPlugin().Metadata },
-        new object[] { new VSCodePlugin().Metadata },
     };
 
     [Theory]

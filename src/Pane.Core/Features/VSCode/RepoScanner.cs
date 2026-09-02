@@ -1,4 +1,4 @@
-namespace Pane.Plugins.VSCode;
+namespace Pane.Core.Features.VSCode;
 
 public static class RepoScanner
 {

@@ -2,15 +2,12 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Pane.Abstractions;
 
-namespace Pane.Plugins.VSCode;
+namespace Pane.Core.Features.VSCode;
 
-public sealed class VSCodePlugin : IPlugin
+public sealed class VSCodeFeature
 {
-    public PluginMetadata Metadata { get; } = new(
-        "vscode", "VSCode Repos", "📂",
-        "1.2.0", // x-release-please-version
-        "Open a repo from ~/repos in VSCode",
-        new[] { "code", "repo", "vscode" });
+    public FeatureDescriptor Descriptor { get; } = new(
+        "vscode", "VSCode Repos", "📂", null, 0, new[] { "code", "repo", "vscode" });
 
     static string Home => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     static string ReposDir => Path.Combine(Home, "repos");
@@ -19,7 +16,7 @@ public sealed class VSCodePlugin : IPlugin
         "/opt/homebrew/bin/code", "/usr/local/bin/code", "/usr/bin/code", "code"
     };
 
-    public Task InitializeAsync(IPluginContext ctx) => Task.CompletedTask;
+    public Task InitializeAsync() => Task.CompletedTask;
 
     public async IAsyncEnumerable<PaneResult> QueryAsync(
         PaneQuery q, [EnumeratorCancellation] CancellationToken ct)
@@ -42,5 +39,4 @@ public sealed class VSCodePlugin : IPlugin
         return Task.CompletedTask;
     }
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

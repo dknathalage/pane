@@ -1,4 +1,4 @@
-using Pane.Plugins.VSCode;
+using Pane.Core.Features.VSCode;
 using Xunit;
 
 public class RepoScannerTests
