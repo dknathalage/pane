@@ -23,7 +23,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Pane.Core\Pane.Core.csproj" />
     <ProjectReference Include="..\..\src\Pane.Platform\Pane.Platform.csproj" />
-    <ProjectReference Include="..\..\src\Pane.Plugins.Apps\Pane.Plugins.Apps.csproj" />
   </ItemGroup>
 
   <ItemGroup>

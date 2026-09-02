@@ -1,4 +1,4 @@
-using Pane.Plugins.Apps;
+using Pane.Core.Features.Apps;
 using Xunit;
 
 public class MacAppIndexerTests

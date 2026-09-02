@@ -3,31 +3,29 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Pane.Abstractions;
 
-namespace Pane.Plugins.Apps;
+namespace Pane.Core.Features.Apps;
 
-public sealed class AppsPlugin : IPlugin
+public sealed class AppsFeature
 {
-    public PluginMetadata Metadata { get; } = new(
-        "apps", "Applications", "🚀",
-        "1.2.0", // x-release-please-version
-        "Launch installed applications",
-        new[] { "app", "open", "launch" });
+    public FeatureDescriptor Descriptor { get; } = new(
+        "apps", "Applications", "🚀", null, 0, new[] { "app", "open", "launch" });
 
     IReadOnlyList<AppEntry> _apps = Array.Empty<AppEntry>();
     MacAppIcons? _icons;
 
-    public Task InitializeAsync(IPluginContext ctx)
-    {
-        _apps = AppIndexerFactory.Create().Index().ToList();   // cache at init
+    readonly string _dataDir;
+    public AppsFeature(string dataDirectory) => _dataDir = dataDirectory;
 
-        // Real macOS app icons: load cached ones now, generate the rest in the
-        // background. Icons appear as the cache warms (instant on later runs).
+    public Task InitializeAsync()
+    {
+        _apps = AppIndexerFactory.Create().Index().ToList();
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            _icons = new MacAppIcons(ctx.DataDirectory);
+            Directory.CreateDirectory(_dataDir);
+            _icons = new MacAppIcons(_dataDir);
             var targets = _apps.Select(a => a.LaunchTarget).ToList();
-            _icons.LoadCached(targets);                  // instant for already-cached icons
-            _ = _icons.GenerateMissingAsync(targets);    // background for the rest
+            _icons.LoadCached(targets);
+            _ = _icons.GenerateMissingAsync(targets);
         }
         return Task.CompletedTask;
     }
@@ -65,5 +63,4 @@ public sealed class AppsPlugin : IPlugin
         return Task.CompletedTask;
     }
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

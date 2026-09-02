@@ -1,4 +1,4 @@
-namespace Pane.Plugins.Apps;
+namespace Pane.Core.Features.Apps;
 
 public sealed class MacAppIndexer : IAppIndexer
 {

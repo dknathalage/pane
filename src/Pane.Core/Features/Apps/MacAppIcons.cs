@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Pane.Plugins.Apps;
+namespace Pane.Core.Features.Apps;
 
 /// <summary>
 /// Resolves a macOS .app bundle to a base64 PNG data-URI of its icon, cached

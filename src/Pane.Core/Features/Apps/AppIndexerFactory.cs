@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Pane.Plugins.Apps;
+namespace Pane.Core.Features.Apps;
 
 public static class AppIndexerFactory
 {

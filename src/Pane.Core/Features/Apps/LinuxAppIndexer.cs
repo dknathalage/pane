@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Pane.Plugins.Apps;
+namespace Pane.Core.Features.Apps;
 
 public sealed class LinuxAppIndexer : IAppIndexer
 {
