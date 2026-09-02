@@ -48,7 +48,8 @@ public sealed class QueryDispatcher
             // Silent isolation: a throwing/timing-out plugin contributes nothing.
             return Array.Empty<ScoredResult>();
         }
-        return _ranker.Rank(query, p.meta, raw).ToList();
+        var desc = new FeatureDescriptor(p.meta.Id, p.meta.Name, p.meta.Icon, p.meta.Keyword, p.meta.Priority, p.meta.Keywords);
+        return _ranker.Rank(query, desc, raw).ToList();
     }
 
     static (string? keyword, string terms) ParsePrefix(

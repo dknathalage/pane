@@ -10,7 +10,7 @@ public sealed class ResultRanker
     readonly IFuzzyMatcher _matcher;
     public ResultRanker(IFuzzyMatcher matcher) => _matcher = matcher;
 
-    public IEnumerable<ScoredResult> Rank(PaneQuery q, PluginMetadata meta, IEnumerable<PaneResult> results)
+    public IEnumerable<ScoredResult> Rank(PaneQuery q, FeatureDescriptor meta, IEnumerable<PaneResult> results)
     {
         var tokens = (q.Terms ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var scored = new List<ScoredResult>();
@@ -62,7 +62,7 @@ public sealed class ResultRanker
     }
 
     // Best fuzzy score of a token against the plugin's name or any keyword.
-    double PluginTokenScore(string token, PluginMetadata meta)
+    double PluginTokenScore(string token, FeatureDescriptor meta)
     {
         double best = 0;
         if (_matcher.TryMatch(token, meta.Name, out var n, out _)) best = Math.Max(best, n);
