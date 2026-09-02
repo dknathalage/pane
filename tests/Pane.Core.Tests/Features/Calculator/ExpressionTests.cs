@@ -1,4 +1,4 @@
-using Pane.Plugins.Calculator;
+using Pane.Core.Features.Calculator;
 using Xunit;
 
 public class ExpressionTests

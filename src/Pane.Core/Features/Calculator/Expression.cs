@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Pane.Plugins.Calculator;
+namespace Pane.Core.Features.Calculator;
 
 public static class Expression
 {

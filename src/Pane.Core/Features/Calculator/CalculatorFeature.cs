@@ -1,17 +1,14 @@
 using System.Runtime.CompilerServices;
 using Pane.Abstractions;
 
-namespace Pane.Plugins.Calculator;
+namespace Pane.Core.Features.Calculator;
 
-public sealed class CalculatorPlugin : IPlugin
+public sealed class CalculatorFeature
 {
-    public PluginMetadata Metadata { get; } = new(
-        "calc", "Calculator", "🧮",
-        "1.2.0", // x-release-please-version
-        "Evaluate math expressions",
-        new[] { "calc", "math", "=" }, "=", Priority: 10);
+    public FeatureDescriptor Descriptor { get; } = new(
+        "calc", "Calculator", "🧮", "=", 10, new[] { "calc", "math", "=" });
 
-    public Task InitializeAsync(IPluginContext ctx) => Task.CompletedTask;
+    public Task InitializeAsync() => Task.CompletedTask;
 
     public async IAsyncEnumerable<PaneResult> QueryAsync(
         PaneQuery q, [EnumeratorCancellation] CancellationToken ct)
@@ -44,5 +41,4 @@ public sealed class CalculatorPlugin : IPlugin
         return Task.CompletedTask;
     }
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
