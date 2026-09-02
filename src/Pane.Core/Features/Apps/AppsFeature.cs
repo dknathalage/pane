@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Pane.Abstractions;
+using Pane.Core.Contracts;
 
 namespace Pane.Core.Features.Apps;
 

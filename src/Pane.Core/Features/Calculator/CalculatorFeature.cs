@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using Pane.Abstractions;
+using Pane.Core.Contracts;
 
 namespace Pane.Core.Features.Calculator;
 

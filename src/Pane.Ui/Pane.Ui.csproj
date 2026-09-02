@@ -17,7 +17,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Pane.Core\Pane.Core.csproj" />
-    <ProjectReference Include="..\Pane.Abstractions\Pane.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

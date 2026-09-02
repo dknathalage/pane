@@ -1,4 +1,4 @@
-namespace Pane.Abstractions;
+namespace Pane.Core.Contracts;
 
 public interface IFuzzyMatcher
 {

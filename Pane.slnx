@@ -1,13 +1,11 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/Pane.Abstractions/Pane.Abstractions.csproj" />
     <Project Path="src/Pane.App/Pane.App.csproj" />
     <Project Path="src/Pane.Core/Pane.Core.csproj" />
     <Project Path="src/Pane.Platform/Pane.Platform.csproj" />
     <Project Path="src/Pane.Ui/Pane.Ui.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/Pane.Abstractions.Tests/Pane.Abstractions.Tests.csproj" />
     <Project Path="tests/Pane.Core.Tests/Pane.Core.Tests.csproj" />
   </Folder>
 </Solution>

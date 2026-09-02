@@ -1,4 +1,4 @@
-namespace Pane.Abstractions;
+namespace Pane.Core.Contracts;
 
 public record FeatureDescriptor(
     string Id,

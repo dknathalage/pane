@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using Pane.Abstractions;
+using Pane.Core.Contracts;
 using Pane.App;
 using Pane.Core;
 using Pane.Core.Features.Apps;

@@ -1,5 +1,4 @@
-using Pane.Abstractions;
-using Xunit;
+using Pane.Core.Contracts;
 
 public class FuzzyMatcherTests
 {
