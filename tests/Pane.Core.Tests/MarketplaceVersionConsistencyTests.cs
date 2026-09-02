@@ -1,7 +1,6 @@
 using Pane.Abstractions;
 using Pane.Core.Marketplace;
 using Pane.Plugins.Apps;
-using Pane.Plugins.Scripts;
 using Pane.Plugins.VSCode;
 using Xunit;
 
@@ -15,7 +14,6 @@ public class MarketplaceVersionConsistencyTests
     public static IEnumerable<object[]> BundledPlugins() => new[]
     {
         new object[] { new AppsPlugin().Metadata },
-        new object[] { new ScriptsPlugin().Metadata },
         new object[] { new VSCodePlugin().Metadata },
     };
 

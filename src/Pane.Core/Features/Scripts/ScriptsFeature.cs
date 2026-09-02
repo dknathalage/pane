@@ -2,15 +2,12 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Pane.Abstractions;
 
-namespace Pane.Plugins.Scripts;
+namespace Pane.Core.Features.Scripts;
 
-public sealed class ScriptsPlugin : IPlugin
+public sealed class ScriptsFeature
 {
-    public PluginMetadata Metadata { get; } = new(
-        "scripts", "Scripts", "📜",
-        "1.2.0", // x-release-please-version
-        "Run shell scripts from your scripts folders",
-        new[] { "script", "run", "sh" }, ">");
+    public FeatureDescriptor Descriptor { get; } = new(
+        "scripts", "Scripts", "📜", ">", 0, new[] { "script", "run", "sh" });
 
     static readonly string[] Dirs =
     {
@@ -19,7 +16,7 @@ public sealed class ScriptsPlugin : IPlugin
     };
     static string Home => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-    public Task InitializeAsync(IPluginContext ctx) => Task.CompletedTask;
+    public Task InitializeAsync() => Task.CompletedTask;
 
     public async IAsyncEnumerable<PaneResult> QueryAsync(
         PaneQuery q, [EnumeratorCancellation] CancellationToken ct)
@@ -47,5 +44,4 @@ public sealed class ScriptsPlugin : IPlugin
         return Task.CompletedTask;
     }
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

@@ -1,4 +1,4 @@
-using Pane.Plugins.Scripts;
+using Pane.Core.Features.Scripts;
 using Xunit;
 
 public class ScriptHeaderTests

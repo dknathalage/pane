@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Pane.Plugins.Scripts;
+namespace Pane.Core.Features.Scripts;
 
 public static class ScriptHeader
 {
