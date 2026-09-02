@@ -1,68 +1,88 @@
 using System.Runtime.CompilerServices;
 using Pane.Abstractions;
+using Pane.Core.Features.Apps;
+using Pane.Core.Features.Calculator;
+using Pane.Core.Features.Files;
+using Pane.Core.Features.Scripts;
+using Pane.Core.Features.VSCode;
 using Pane.Core.Query;
+using Pane.Core.Settings;
 using Xunit;
 
 public class QueryDispatcherTests
 {
-    sealed class FakePlugin : IPlugin
+    sealed class EmptySearcher : IFileSearcher
     {
-        readonly string[] _titles;
-        readonly bool _throws;
-        public FakePlugin(PluginMetadata meta, bool throws, params string[] titles)
-        { Metadata = meta; _throws = throws; _titles = titles; }
-        public PluginMetadata Metadata { get; }
-        public Task InitializeAsync(IPluginContext ctx) => Task.CompletedTask;
-        public async IAsyncEnumerable<PaneResult> QueryAsync(PaneQuery q, [EnumeratorCancellation] CancellationToken ct)
-        {
-            if (_throws) throw new InvalidOperationException("kaboom");
-            foreach (var t in _titles) { yield return new PaneResult(t, "", "", 1, () => Task.CompletedTask); }
-            await Task.CompletedTask;
-        }
-        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        public IReadOnlyList<FileHit> Search(string terms, int max, CancellationToken ct)
+            => Array.Empty<FileHit>();
     }
 
-    static PluginMetadata Meta(string id, string? keyword = null) =>
-        new(id, id, "🔌", "1", "d", Array.Empty<string>(), keyword);
+    static QueryDispatcher Build() =>
+        new QueryDispatcher(
+            new FuzzyMatcher(),
+            new SettingsStore(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json")),
+            new AppsFeature(Path.GetTempPath()),
+            new FilesFeature(new EmptySearcher()),
+            new CalculatorFeature(),
+            new ScriptsFeature(),
+            new VSCodeFeature());
 
     [Fact]
-    public async Task Aggregates_results_from_all_plugins()
+    public async Task Calculator_keyword_prefix_scopes_to_calc()
     {
-        var d = new QueryDispatcher(new FuzzyMatcher());
-        var plugins = new (PluginMetadata, IPlugin)[]
-        {
-            (Meta("a"), new FakePlugin(Meta("a"), false, "apple")),
-            (Meta("b"), new FakePlugin(Meta("b"), false, "apricot")),
-        };
-        var res = await d.DispatchAsync("ap", plugins, CancellationToken.None);
-        Assert.Equal(2, res.Count);
+        var d = Build();
+        var results = await d.DispatchAsync("=2+2", CancellationToken.None);
+        // Only calculator should respond to "=" prefix and return a result
+        Assert.True(results.Count >= 1);
+        // All results should come from the calc feature
+        Assert.All(results, r => Assert.Equal("calc", r.PluginId));
     }
 
     [Fact]
-    public async Task Throwing_plugin_is_isolated()
+    public async Task Empty_query_returns_results_without_throwing()
     {
-        var d = new QueryDispatcher(new FuzzyMatcher());
-        var plugins = new (PluginMetadata, IPlugin)[]
-        {
-            (Meta("a"), new FakePlugin(Meta("a"), true)),               // throws
-            (Meta("b"), new FakePlugin(Meta("b"), false, "apple")),
-        };
-        var res = await d.DispatchAsync("ap", plugins, CancellationToken.None);
-        Assert.Single(res);
-        Assert.Equal("apple", res[0].Result.Title);
+        var d = Build();
+        var results = await d.DispatchAsync("", CancellationToken.None);
+        // Should not throw; results may be empty or populated
+        Assert.NotNull(results);
     }
 
     [Fact]
-    public async Task Keyword_prefix_scopes_to_one_plugin()
+    public async Task Cancellation_is_respected()
     {
-        var d = new QueryDispatcher(new FuzzyMatcher());
-        var plugins = new (PluginMetadata, IPlugin)[]
-        {
-            (Meta("scripts", ">"), new FakePlugin(Meta("scripts", ">"), false, "build")),
-            (Meta("apps"), new FakePlugin(Meta("apps"), false, "browser")),
-        };
-        var res = await d.DispatchAsync("> bu", plugins, CancellationToken.None);
-        Assert.Single(res);
-        Assert.Equal("build", res[0].Result.Title);
+        var d = Build();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        // Should not throw — each feature catches exceptions
+        var results = await d.DispatchAsync("hello", cts.Token);
+        Assert.NotNull(results);
+    }
+
+    [Fact]
+    public async Task Features_property_returns_five_features()
+    {
+        var d = Build();
+        Assert.Equal(5, d.Features.Count);
+    }
+
+    [Fact]
+    public async Task Disabled_feature_is_excluded()
+    {
+        var store = new SettingsStore(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json"));
+        var settings = store.Load();
+        settings.DisabledPlugins.Add("calc");
+        store.Save(settings);
+
+        var d = new QueryDispatcher(
+            new FuzzyMatcher(), store,
+            new AppsFeature(Path.GetTempPath()),
+            new FilesFeature(new EmptySearcher()),
+            new CalculatorFeature(),
+            new ScriptsFeature(),
+            new VSCodeFeature());
+
+        var results = await d.DispatchAsync("=2+2", CancellationToken.None);
+        // calc is disabled, so the "=" prefix finds no active feature — results should be empty
+        Assert.Empty(results);
     }
 }

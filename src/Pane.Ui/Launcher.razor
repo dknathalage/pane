@@ -1,4 +1,3 @@
-@inject PluginManager Manager
 @inject QueryDispatcher Dispatcher
 @inject IWindowController Window
 @inject IFuzzyMatcher Fuzzy
@@ -129,14 +128,9 @@
         old?.Cancel();
         old?.Dispose();
 
-        var plugins = Manager.List()
-            .Where(e => e.State == PluginState.Enabled && e.Instance is not null)
-            .Select(e => (e.Metadata, e.Instance!))
-            .ToList();
-
         try
         {
-            var results = (await Dispatcher.DispatchAsync(_text, plugins, token)).ToList();
+            var results = (await Dispatcher.DispatchAsync(_text, token)).ToList();
             AddSettingsResult(results);
             _results = results;
             _selected = 0;
