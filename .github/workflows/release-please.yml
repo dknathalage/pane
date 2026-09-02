@@ -1,9 +1,9 @@
-name: Release plugins
+name: Release Pane
 
 # release-please maintains a release PR from conventional commits on main.
-# Merging that PR cuts the plugins-vX.Y.Z tag + GitHub release; the second job
-# then builds the plugin zips, uploads them as release assets, and syncs the
-# download URLs in marketplace.json.
+# Merging that PR cuts the pane-vX.Y.Z tag + GitHub release; the second job
+# then builds Pane.app for each supported RID, zips it, and uploads the
+# zip as a release asset.
 on:
   push:
     branches: [main]
@@ -18,7 +18,6 @@ jobs:
     outputs:
       releases_created: ${{ steps.rp.outputs.releases_created }}
       tag_name: ${{ steps.rp.outputs.tag_name }}
-      version: ${{ steps.rp.outputs.version }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: rp
@@ -30,7 +29,10 @@ jobs:
   build-and-upload:
     needs: release-please
     if: ${{ needs.release-please.outputs.releases_created == 'true' }}
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rid: [osx-arm64, osx-x64]
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -38,25 +40,15 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Build and package plugins
-        run: build/package-plugins.sh
+      - name: Build Pane.app (${{ matrix.rid }})
+        run: bash build/make-app.sh ${{ matrix.rid }} dist
 
-      - name: Upload plugin zips to the release
+      - name: Zip Pane.app
+        run: |
+          cd dist
+          zip -qry Pane-${{ matrix.rid }}.zip Pane.app
+
+      - name: Upload release asset
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ needs.release-please.outputs.tag_name }}" dist/plugins-release/*.zip --clobber
-
-      - name: Sync marketplace.json download URLs
-        run: build/sync-marketplace.sh "${{ needs.release-please.outputs.version }}"
-
-      - name: Commit marketplace.json sync
-        run: |
-          if git diff --quiet marketplace.json; then
-            echo "marketplace.json already in sync."
-            exit 0
-          fi
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add marketplace.json
-          git commit -m "chore: sync marketplace.json to ${{ needs.release-please.outputs.tag_name }} [skip ci]"
-          git push
+        run: gh release upload "${{ needs.release-please.outputs.tag_name }}" dist/Pane-${{ matrix.rid }}.zip --clobber

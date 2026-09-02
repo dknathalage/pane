@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Assemble a self-contained Pane.app bundle (+ plugins/) for a target RID.
+# Assemble a self-contained Pane.app bundle for a target RID.
 # Self-contained means the .NET runtime is bundled inside the app, so the
 # installed app needs no dotnet / Homebrew on PATH — which is exactly what a
 # downloadable release requires.
 #
 # Usage: build/make-app.sh [RID] [OUTDIR]
 #   RID     defaults to this machine's arch (osx-arm64 / osx-x64)
-#   OUTDIR  defaults to <repo>/dist ; produces $OUTDIR/Pane.app and $OUTDIR/plugins
+#   OUTDIR  defaults to <repo>/dist ; produces $OUTDIR/Pane.app
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -14,7 +14,6 @@ RID="${1:-$(uname -m | sed 's/^arm64$/osx-arm64/; s/^x86_64$/osx-x64/')}"
 OUTDIR="${2:-$ROOT/dist}"
 APP="$OUTDIR/Pane.app"
 PUBLISH="$OUTDIR/.publish-$RID"
-PLUGINS_OUT="$OUTDIR/plugins"
 
 echo "==> Publishing self-contained Pane.App ($RID)"
 rm -rf "$APP" "$PUBLISH"
@@ -52,15 +51,5 @@ $ICON_LINE
 </plist>
 PLIST
 
-echo "==> Building + staging plugins → $PLUGINS_OUT"
-rm -rf "$PLUGINS_OUT"
-for p in Scripts VSCode Apps Calculator; do
-  dotnet build "$ROOT/src/Pane.Plugins.$p" -c Release --nologo -v q >/dev/null
-  mkdir -p "$PLUGINS_OUT/Pane.Plugins.$p"
-  cp "$ROOT/src/Pane.Plugins.$p/bin/Release/net10.0/Pane.Plugins.$p.dll" \
-     "$PLUGINS_OUT/Pane.Plugins.$p/"
-done
-
 rm -rf "$PUBLISH"
 echo "==> Done: $APP"
-echo "         $PLUGINS_OUT"

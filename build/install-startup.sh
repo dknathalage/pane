@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install Pane as a login item (LaunchAgent) so the global hotkey is always
-# listening. Publishes the app, deploys the plugins, and loads a per-user
+# listening. Publishes the app and loads a per-user
 # LaunchAgent that starts Pane hidden at login.
 #
 # The app is launched via the `dotnet` CLI (not the apphost) — the apphost
@@ -11,7 +11,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APPDIR="$HOME/Applications/Pane"
 DLL="$APPDIR/Pane.App.dll"
-PLUGINS_DEST="$HOME/.config/pane/plugins"
 LABEL="com.pane.launcher"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 DOTNET="$(command -v dotnet)"
@@ -19,14 +18,6 @@ DOTNET="$(command -v dotnet)"
 echo "==> Publishing Pane.App (Release) → $APPDIR"
 rm -rf "$APPDIR"
 dotnet publish "$ROOT/src/Pane.App" -c Release -o "$APPDIR" --nologo -v q
-
-echo "==> Building + deploying plugins (Release) → $PLUGINS_DEST"
-for p in Scripts VSCode Apps Calculator; do
-  dotnet build "$ROOT/src/Pane.Plugins.$p" -c Release --nologo -v q >/dev/null
-  OUT="$PLUGINS_DEST/Pane.Plugins.$p"
-  mkdir -p "$OUT"
-  cp "$ROOT/src/Pane.Plugins.$p/bin/Release/net10.0/Pane.Plugins.$p.dll" "$OUT/"
-done
 
 echo "==> Stopping any running Pane instances"
 pkill -f "Pane.App" 2>/dev/null || true

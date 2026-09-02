@@ -3,22 +3,10 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "component": "plugins",
+      "component": "pane",
       "include-component-in-tag": true,
-      "package-name": "pane-plugins",
-      "changelog-path": "CHANGELOG-plugins.md",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": "marketplace.json",
-          "jsonpath": "$.plugins[*].version"
-        },
-        "src/Pane.Plugins.Apps/AppsPlugin.cs",
-        "src/Pane.Plugins.Calculator/CalculatorPlugin.cs",
-        "src/Pane.Plugins.Files/FilesPlugin.cs",
-        "src/Pane.Plugins.Scripts/ScriptsPlugin.cs",
-        "src/Pane.Plugins.VSCode/VSCodePlugin.cs"
-      ]
+      "package-name": "pane",
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }
