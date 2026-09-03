@@ -50,7 +50,13 @@ public sealed class FeatureConfig
     public static FeatureConfig Resolve(
         FeatureDescriptor desc, IReadOnlyList<SettingDefinition> schema, JsonObject values)
     {
+        // The universal settings live in the same lookup as the declared ones: the
+        // settings UI renders both through the typed accessors, so both must
+        // resolve there. Only their *defaults* come from the descriptor.
         var byKey = new Dictionary<string, SettingDefinition>(StringComparer.Ordinal);
+        foreach (var s in UniversalSettings(desc))
+            byKey[s.Key] = s;
+
         foreach (var s in schema)
         {
             if (s.Key is EnabledKey or KeywordKey or PriorityKey)

@@ -119,6 +119,67 @@ public class FeatureConfigTests
         Assert.Equal(new[] { "enabled", "keyword", "priority" }, keys);
     }
 
+    // The settings UI renders universal settings through the same typed accessors
+    // as feature-declared ones, so they must resolve there too.
+    [Fact]
+    public void Universal_settings_are_readable_through_the_typed_accessors()
+    {
+        var c = Resolve(new JsonObject());
+        Assert.Equal(5, c.GetInt(FeatureConfig.PriorityKey));
+        Assert.True(c.GetBool(FeatureConfig.EnabledKey));
+        Assert.Equal("@", c.GetText(FeatureConfig.KeywordKey));
+    }
+
+    [Fact]
+    public void Universal_accessors_reflect_stored_values()
+    {
+        var c = Resolve(new JsonObject
+        {
+            [FeatureConfig.PriorityKey] = -20,
+            [FeatureConfig.EnabledKey] = false,
+            [FeatureConfig.KeywordKey] = "!",
+        });
+        Assert.Equal(-20, c.GetInt(FeatureConfig.PriorityKey));
+        Assert.False(c.GetBool(FeatureConfig.EnabledKey));
+        Assert.Equal("!", c.GetText(FeatureConfig.KeywordKey));
+    }
+
+    [Fact]
+    public void Every_universal_definition_resolves_through_its_accessor()
+    {
+        var c = Resolve(new JsonObject());
+
+        // Guards the exact loop the settings pane runs: render each universal
+        // definition by reading it back through the accessor for its kind.
+        foreach (var def in FeatureConfig.UniversalSettings(Desc))
+        {
+            switch (def)
+            {
+                case BoolSetting b: c.GetBool(b.Key); break;
+                case IntSetting i: c.GetInt(i.Key); break;
+                case TextSetting t: c.GetText(t.Key); break;
+                case PathsSetting p: c.GetPaths(p.Key); break;
+            }
+        }
+    }
+
+    [Fact]
+    public void Every_declared_definition_resolves_through_its_accessor()
+    {
+        var c = Resolve(new JsonObject());
+
+        foreach (var def in Schema)
+        {
+            switch (def)
+            {
+                case BoolSetting b: c.GetBool(b.Key); break;
+                case IntSetting i: c.GetInt(i.Key); break;
+                case TextSetting t: c.GetText(t.Key); break;
+                case PathsSetting p: c.GetPaths(p.Key); break;
+            }
+        }
+    }
+
     [Fact]
     public void A_feature_may_not_redeclare_a_universal_key()
     {
