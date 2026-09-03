@@ -30,21 +30,19 @@ var settingsStorePath = Path.Combine(dataRoot, "settings.json");
 var settingsStore = new SettingsStore(settingsStorePath);
 builder.Services.AddSingleton(settingsStore);
 
-// Features (built-in; no dynamic loading).
-builder.Services.AddSingleton(new AppsFeature(Path.Combine(dataRoot, "data", "apps")));
-builder.Services.AddSingleton<FilesFeature>();
-builder.Services.AddSingleton<CalculatorFeature>();
-builder.Services.AddSingleton<ScriptsFeature>();
-builder.Services.AddSingleton<VSCodeFeature>();
+// Features (built-in; no dynamic loading). They are registered behind
+// IPaneFeature only — the dispatcher discovers them, configures them from
+// settings, and asks each whether it can run on this machine.
+builder.Services.AddSingleton<IPaneFeature, AppsFeature>();
+builder.Services.AddSingleton<IPaneFeature, FilesFeature>();
+builder.Services.AddSingleton<IPaneFeature, CalculatorFeature>();
+builder.Services.AddSingleton<IPaneFeature, ScriptsFeature>();
+builder.Services.AddSingleton<IPaneFeature, VSCodeFeature>();
 
 builder.Services.AddSingleton(sp => new QueryDispatcher(
     sp.GetRequiredService<IFuzzyMatcher>(),
     sp.GetRequiredService<SettingsStore>(),
-    sp.GetRequiredService<AppsFeature>(),
-    sp.GetRequiredService<FilesFeature>(),
-    sp.GetRequiredService<CalculatorFeature>(),
-    sp.GetRequiredService<ScriptsFeature>(),
-    sp.GetRequiredService<VSCodeFeature>()));
+    sp.GetServices<IPaneFeature>()));
 
 builder.Services.AddSingleton<IGlobalHotkey, SharpHookGlobalHotkey>();
 
@@ -86,14 +84,19 @@ app.MainWindow.Centered = true;   // property, not a method
 var windowController = app.Services.GetRequiredService<AppWindowController>();
 windowController.Attach(app.MainWindow, startVisible: true);
 
+// Photino calls setActivationPolicy: while creating the window, overriding the
+// bundle's LSUIElement. Correcting it here — the moment the native window exists —
+// makes Pane a background launcher (no Dock tile, no Command-Tab entry, floats
+// over full-screen apps) before a tile can appear. Doing it on a timer instead
+// would show the icon for as long as the timer ran. MacApp.Activate() re-asserts
+// the window style on every show, since Photino resets the level with topmost.
+app.MainWindow.RegisterWindowCreatedHandler((_, _) => MacApp.ConfigureAsLauncher());
+
 // ── Post-startup tasks ─────────────────────────────────────────────────────
-// Initialize built-in features before the message loop starts.
-await app.Services.GetRequiredService<AppsFeature>().InitializeAsync();
-await app.Services.GetRequiredService<FilesFeature>().InitializeAsync();
-// calc/scripts/vscode InitializeAsync are no-ops but call for symmetry:
-await app.Services.GetRequiredService<CalculatorFeature>().InitializeAsync();
-await app.Services.GetRequiredService<ScriptsFeature>().InitializeAsync();
-await app.Services.GetRequiredService<VSCodeFeature>().InitializeAsync();
+// Initialize built-in features before the message loop starts. This also
+// resolves each feature's settings and probes its availability.
+await app.Services.GetRequiredService<QueryDispatcher>()
+    .InitializeAsync(new FeatureContext(Path.Combine(dataRoot, "data"), home), CancellationToken.None);
 
 // ── Global hotkey + menu bar ───────────────────────────────────────────────
 var settings = settingsStore.Load();

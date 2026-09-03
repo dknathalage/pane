@@ -6,6 +6,8 @@ namespace Pane.Core.Features.Files;
 /// </summary>
 public sealed class LinuxFileSearcher : IFileSearcher
 {
+    public bool IsAvailable => ExecutableProbe.Exists("plocate") || ExecutableProbe.Exists("locate");
+
     public IReadOnlyList<FileHit> Search(string terms, int max, CancellationToken ct)
     {
         var args = new[] { "-i", "-b", "-l", max.ToString(), terms };

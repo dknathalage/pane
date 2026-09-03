@@ -10,7 +10,8 @@ public sealed class ResultRanker
     readonly IFuzzyMatcher _matcher;
     public ResultRanker(IFuzzyMatcher matcher) => _matcher = matcher;
 
-    public IEnumerable<ScoredResult> Rank(PaneQuery q, FeatureDescriptor meta, IEnumerable<PaneResult> results)
+    public IEnumerable<ScoredResult> Rank(
+        PaneQuery q, FeatureDescriptor meta, int priority, IEnumerable<PaneResult> results)
     {
         var tokens = (q.Terms ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var scored = new List<ScoredResult>();
@@ -20,7 +21,7 @@ public sealed class ResultRanker
             // Empty query: keep everything, ranked by BaseScore.
             if (tokens.Length == 0)
             {
-                scored.Add(new ScoredResult(r, r.BaseScore * W_Base + meta.Priority, Array.Empty<int>(), meta.Id));
+                scored.Add(new ScoredResult(r, r.BaseScore * W_Base + priority, Array.Empty<int>(), meta.Id));
                 continue;
             }
 
@@ -54,7 +55,7 @@ public sealed class ResultRanker
 
             if (!allMatched) continue;
 
-            double final = itemScore * W_Fuzzy + pluginScore * W_Plugin + r.BaseScore * W_Base + meta.Priority;
+            double final = itemScore * W_Fuzzy + pluginScore * W_Plugin + r.BaseScore * W_Base + priority;
             scored.Add(new ScoredResult(r, final, titleHighlights.ToArray(), meta.Id));
         }
 

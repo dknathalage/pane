@@ -1,3 +1,6 @@
+@using Pane.Core.Query
+@inject QueryDispatcher Dispatcher
+
 <div class="settings">
     <nav>
         <button class="settings-back" title="Back (esc)" @onclick="OnBack">
@@ -6,12 +9,54 @@
                 <path d="M15 18l-6-6 6-6" />
             </svg>
         </button>
+        <span class="settings-heading">Settings</span>
     </nav>
-    <section>
-        <FeaturesPane />
-    </section>
+
+    <div class="settings-body">
+        <aside class="settings-sidebar">
+            <button class="settings-tab @(_selected is null ? "active" : "")"
+                    @onclick="() => _selected = null">
+                <span class="pane-title">General</span>
+            </button>
+
+            @foreach (var f in Dispatcher.Features)
+            {
+                <button class="settings-tab @(_selected == f.Id ? "active" : "")"
+                        @onclick="() => _selected = f.Id">
+                    <span class="pane-icon">@f.Descriptor.Icon</span>
+                    <span class="pane-title">@f.Descriptor.Name</span>
+                    @if (!f.Availability.IsAvailable)
+                    {
+                        <span class="settings-tab-state">unavailable</span>
+                    }
+                    else if (!f.Config.Enabled)
+                    {
+                        <span class="settings-tab-state">off</span>
+                    }
+                </button>
+            }
+        </aside>
+
+        <section class="settings-detail">
+            @if (Current is { } feature)
+            {
+                <FeaturePane Feature="feature" OnChanged="StateHasChanged" />
+            }
+            else
+            {
+                <GeneralPane />
+            }
+        </section>
+    </div>
 </div>
 
 @code {
     [Parameter] public EventCallback OnBack { get; set; }
+
+    string? _selected;
+
+    // Resolved fresh on every render: saving a setting rebuilds the feature views,
+    // so holding the old one would show stale config and stale availability.
+    FeatureView? Current =>
+        _selected is null ? null : Dispatcher.Features.FirstOrDefault(f => f.Id == _selected);
 }

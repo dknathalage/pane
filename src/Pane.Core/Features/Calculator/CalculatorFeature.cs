@@ -3,19 +3,32 @@ using Pane.Core.Contracts;
 
 namespace Pane.Core.Features.Calculator;
 
-public sealed class CalculatorFeature
+public sealed class CalculatorFeature : IPaneFeature
 {
+    const string DecimalsKey = "decimals";
+
     public FeatureDescriptor Descriptor { get; } = new(
         "calc", "Calculator", "🧮", "=", 10, new[] { "calc", "math", "=" });
 
-    public Task InitializeAsync() => Task.CompletedTask;
+    public IReadOnlyList<SettingDefinition> Settings { get; } = new SettingDefinition[]
+    {
+        new IntSetting(DecimalsKey, "Decimal places", 6, 0, 15),
+    };
+
+    int _decimals = 6;
+
+    public Task InitializeAsync(FeatureContext ctx, CancellationToken ct) => Task.CompletedTask;
+
+    public void ApplyConfig(FeatureConfig config) => _decimals = config.GetInt(DecimalsKey);
+
+    public FeatureAvailability CheckAvailability() => FeatureAvailability.Available;
 
     public async IAsyncEnumerable<PaneResult> QueryAsync(
         PaneQuery q, [EnumeratorCancellation] CancellationToken ct)
     {
         if (Expression.TryEval(q.Terms, out var value))
         {
-            var text = value.ToString("0.######");
+            var text = value.ToString("0." + new string('#', _decimals));
             yield return new PaneResult($"= {text}", "Copy to clipboard", "🧮", 100,
                 () => Copy(text), q.Terms);
         }

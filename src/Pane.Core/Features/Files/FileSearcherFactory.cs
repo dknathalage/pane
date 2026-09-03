@@ -18,6 +18,9 @@ public static class FileSearcherFactory
 /// <summary>No-op backend for platforms without an index integration yet.</summary>
 public sealed class NullFileSearcher : IFileSearcher
 {
+    public bool IsAvailable => false;
+
+
     public IReadOnlyList<FileHit> Search(string terms, int max, CancellationToken ct) =>
         Array.Empty<FileHit>();
 }

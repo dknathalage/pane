@@ -6,61 +6,83 @@ using Pane.Core.Contracts;
 namespace Pane.Core.Features.Files;
 
 /// <summary>
-/// Searches the OS's native file index for files and folders. Keyword-activated
-/// with "/" (e.g. "/report") so it never floods the launcher on ordinary queries.
+/// Searches the OS's native file index. It answers plain queries out of the box —
+/// the "/" keyword is an accelerator that shows files only, not a requirement — and
+/// carries a negative default priority so file hits sit below apps, scripts and
+/// repos rather than flooding an ordinary query.
 /// </summary>
-public sealed class FilesFeature
+public sealed class FilesFeature : IPaneFeature
 {
-    const string ActivationKeyword = "/";
-    const int MinTermLength = 2;
-    const int MaxResults = 50;
-    static readonly TimeSpan DefaultDebounce = TimeSpan.FromMilliseconds(150);
+    const string SearchPlainQueriesKey = "searchPlainQueries";
+    const string MinTermLengthKey = "minTermLength";
+    const string MaxResultsKey = "maxResults";
+    const string DebounceKey = "debounceMs";
 
     public FeatureDescriptor Descriptor { get; } = new(
-        "files", "Files", "📁", "/", 0, new[] { "file", "folder", "find" });
+        "files", "Files", "📁", "/", -20, new[] { "file", "folder", "find" });
+
+    public IReadOnlyList<SettingDefinition> Settings { get; } = new SettingDefinition[]
+    {
+        new BoolSetting(SearchPlainQueriesKey, "Search without the keyword", Default: true,
+            "Off means files appear only when the query starts with the keyword."),
+        new IntSetting(MinTermLengthKey, "Minimum characters", 3, 1, 10,
+            "Shorter queries are ignored so the index isn't hit on every keystroke."),
+        new IntSetting(MaxResultsKey, "Maximum results", 25, 1, 200),
+        new IntSetting(DebounceKey, "Debounce (ms)", 150, 0, 1000,
+            "Quiet period before a query reaches the index."),
+    };
 
     IFileSearcher? _searcher;
-    readonly TimeSpan _debounce;
+    bool _searchPlainQueries = true;
+    int _minTermLength = 3;
+    int _maxResults = 25;
+    TimeSpan _debounce = TimeSpan.FromMilliseconds(150);
 
-    /// <summary>Production entry point; the real searcher is resolved at init.</summary>
-    public FilesFeature() => _debounce = DefaultDebounce;
+    public FilesFeature() { }
 
-    /// <summary>Test seam: inject a searcher; no debounce so tests stay fast.</summary>
-    public FilesFeature(IFileSearcher searcher) : this(searcher, TimeSpan.Zero) { }
+    /// <summary>Test seam: inject a searcher instead of resolving the platform one.</summary>
+    public FilesFeature(IFileSearcher searcher) => _searcher = searcher;
 
-    /// <summary>Test seam: inject a searcher and an explicit debounce delay.</summary>
-    public FilesFeature(IFileSearcher searcher, TimeSpan debounce)
-    {
-        _searcher = searcher;
-        _debounce = debounce;
-    }
-
-    public Task InitializeAsync()
+    public Task InitializeAsync(FeatureContext ctx, CancellationToken ct)
     {
         _searcher ??= FileSearcherFactory.Create();
         return Task.CompletedTask;
     }
 
+    public void ApplyConfig(FeatureConfig config)
+    {
+        _searchPlainQueries = config.GetBool(SearchPlainQueriesKey);
+        _minTermLength = config.GetInt(MinTermLengthKey);
+        _maxResults = config.GetInt(MaxResultsKey);
+        _debounce = TimeSpan.FromMilliseconds(config.GetInt(DebounceKey));
+    }
+
+    public FeatureAvailability CheckAvailability() =>
+        _searcher?.IsAvailable == true
+            ? FeatureAvailability.Available
+            : FeatureAvailability.Unavailable("no file search index is available on this system.");
+
     public async IAsyncEnumerable<PaneResult> QueryAsync(
         PaneQuery q, [EnumeratorCancellation] CancellationToken ct)
     {
-        // Only search when explicitly invoked with the "/" keyword.
-        if (q.Keyword != ActivationKeyword) yield break;
+        // The keyword narrows to files only; without it we still search, unless
+        // the user has switched plain-query searching off.
+        if (q.Keyword != Descriptor.Keyword && !_searchPlainQueries) yield break;
 
         var terms = q.Terms.Trim();
-        if (terms.Length < MinTermLength || _searcher is null) yield break;
+        if (terms.Length < _minTermLength || _searcher is null) yield break;
 
         // Wildcard queries feed the longest literal run to the index for
         // candidates; the host glob-matcher does the precise name filtering.
         var seed = LongestLiteralRun(terms);
-        if (seed.Length < MinTermLength) yield break;
+        if (seed.Length < _minTermLength) yield break;
 
         // Debounce: wait out a quiet period before hitting the index. A newer
         // keystroke cancels this token, so the stale query never spawns a search.
         if (_debounce > TimeSpan.Zero)
             await Task.Delay(_debounce, ct);
 
-        foreach (var hit in _searcher.Search(seed, MaxResults, ct))
+        foreach (var hit in _searcher.Search(seed, _maxResults, ct))
         {
             var path = hit.FullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var name = Path.GetFileName(path);
@@ -71,7 +93,6 @@ public sealed class FilesFeature
             var full = hit.FullPath;
             yield return new PaneResult(name, subtitle, icon, 0, () => Open(full), full);
         }
-        await Task.CompletedTask;
     }
 
     // The longest maximal run of non-wildcard characters — the most selective
@@ -120,5 +141,4 @@ public sealed class FilesFeature
         try { using var p = Process.Start(psi); } catch { /* best-effort */ }
         return Task.CompletedTask;
     }
-
 }

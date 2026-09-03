@@ -4,16 +4,11 @@ namespace Pane.Core.Features.Apps;
 
 public sealed class LinuxAppIndexer : IAppIndexer
 {
-    public IEnumerable<AppEntry> Index()
-    {
-        var dirs = new[]
-        {
-            "/usr/share/applications",
-            Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".local/share/applications")
-        };
+    public IReadOnlyList<string> DefaultDirectories { get; } =
+        new[] { "/usr/share/applications", "~/.local/share/applications" };
 
+    public IEnumerable<AppEntry> Index(IReadOnlyList<string> dirs)
+    {
         foreach (var dir in dirs)
         {
             if (!Directory.Exists(dir)) continue;

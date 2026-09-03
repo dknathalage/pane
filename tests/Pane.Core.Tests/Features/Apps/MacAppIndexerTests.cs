@@ -11,8 +11,8 @@ public class MacAppIndexerTests
         Directory.CreateDirectory(Path.Combine(root, "Notes.app"));
         Directory.CreateDirectory(Path.Combine(root, "NotAnApp"));
 
-        var indexer = new MacAppIndexer(new[] { root });
-        var names = indexer.Index().Select(a => a.Name).OrderBy(x => x).ToArray();
+        var indexer = new MacAppIndexer();
+        var names = indexer.Index(new[] { root }).Select(a => a.Name).OrderBy(x => x).ToArray();
 
         Assert.Equal(new[] { "Notes", "Safari" }, names);
     }

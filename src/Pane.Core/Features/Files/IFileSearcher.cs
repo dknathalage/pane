@@ -13,5 +13,20 @@ public readonly record struct FileHit(string FullPath, bool IsDirectory);
 /// </summary>
 public interface IFileSearcher
 {
+    /// <summary>False when this platform's index tool isn't installed or isn't implemented yet.</summary>
+    bool IsAvailable { get; }
+
     IReadOnlyList<FileHit> Search(string terms, int max, CancellationToken ct);
+}
+
+/// <summary>Locates an index binary on PATH, shared by the platform backends.</summary>
+public static class ExecutableProbe
+{
+    public static bool Exists(string command) =>
+        (Environment.GetEnvironmentVariable("PATH") ?? "")
+            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+            .Append("/usr/bin")
+            .Append("/bin")
+            .Select(d => Path.Combine(d, command))
+            .Any(File.Exists);
 }

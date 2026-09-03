@@ -1,0 +1,49 @@
+@using System.Text.Json.Nodes
+@using Pane.Core.Contracts
+@using Pane.Core.Query
+@using Pane.Core.Settings
+@inject QueryDispatcher Dispatcher
+@inject SettingsStore Settings
+
+<div class="pane-feature-header">
+    <span class="pane-icon">@Feature.Descriptor.Icon</span>
+    <span class="pane-text">
+        <span class="pane-title">@Feature.Descriptor.Name</span>
+        @if (!Feature.Availability.IsAvailable)
+        {
+            <span class="pane-subtitle pane-warn">Unavailable — @Feature.Availability.Reason</span>
+        }
+    </span>
+    <input type="checkbox" checked="@Feature.Config.Enabled"
+           @onchange="e => Set(FeatureConfig.EnabledKey, JsonValue.Create((bool)e.Value!))" />
+</div>
+
+<div class="pane-feature-settings">
+    @foreach (var s in FeatureConfig.UniversalSettings(Feature.Descriptor).Concat(Feature.Settings))
+    {
+        if (s.Key != FeatureConfig.EnabledKey)
+        {
+            <Setting Definition="s" Config="Feature.Config" OnChange="v => Set(s.Key, v)" />
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public FeatureView Feature { get; set; } = default!;
+
+    /// <summary>Raised after a save so the page re-resolves this feature's view.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    // Every edit writes one key and re-resolves the dispatcher, so the form
+    // reflects the new config AND the re-checked availability — pointing VSCode at
+    // a real "code" binary flips it back to available without reopening settings.
+    async Task Set(string key, JsonNode? value)
+    {
+        var stored = Settings.Load();
+        var values = stored.FeatureValues(Feature.Id);
+        values[key] = value;
+        Settings.Save(stored.WithFeature(Feature.Id, values));
+        Dispatcher.ReloadSettings();
+        await OnChanged.InvokeAsync();
+    }
+}

@@ -2,15 +2,12 @@ namespace Pane.Core.Features.Apps;
 
 public sealed class MacAppIndexer : IAppIndexer
 {
-    readonly string[] _dirs;
+    public IReadOnlyList<string> DefaultDirectories { get; } =
+        new[] { "/Applications", "/System/Applications", "~/Applications" };
 
-    public MacAppIndexer(string[]? dirs = null) =>
-        _dirs = dirs ?? new[] { "/Applications", "/System/Applications",
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Applications") };
-
-    public IEnumerable<AppEntry> Index()
+    public IEnumerable<AppEntry> Index(IReadOnlyList<string> dirs)
     {
-        foreach (var dir in _dirs)
+        foreach (var dir in dirs)
         {
             if (!Directory.Exists(dir)) continue;
             foreach (var app in Directory.GetDirectories(dir, "*.app"))
