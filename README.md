@@ -31,6 +31,12 @@ automatically and says why in Settings.
 4. Press **Enter** or click a result to act on it.
 5. Press **Escape** to dismiss.
 
+Pane runs as a background agent: no Dock icon and no entry in the ⌘-Tab switcher,
+and the launcher floats over full-screen apps and follows you across Spaces. It
+lives in the menu bar — left-click the **Pane** item to open the launcher,
+right-click it for **Open Pane** and **Quit Pane**. Quitting from that menu is the
+way out, since there is no Dock icon to right-click.
+
 ## Settings
 
 Search for "settings" in the launcher to open it. The page is a sidebar of tabs —

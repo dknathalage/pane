@@ -84,6 +84,14 @@ app.MainWindow.Centered = true;   // property, not a method
 var windowController = app.Services.GetRequiredService<AppWindowController>();
 windowController.Attach(app.MainWindow, startVisible: true);
 
+// Photino calls setActivationPolicy: while creating the window, overriding the
+// bundle's LSUIElement. Correcting it here — the moment the native window exists —
+// makes Pane a background launcher (no Dock tile, no Command-Tab entry, floats
+// over full-screen apps) before a tile can appear. Doing it on a timer instead
+// would show the icon for as long as the timer ran. MacApp.Activate() re-asserts
+// the window style on every show, since Photino resets the level with topmost.
+app.MainWindow.RegisterWindowCreatedHandler((_, _) => MacApp.ConfigureAsLauncher());
+
 // ── Post-startup tasks ─────────────────────────────────────────────────────
 // Initialize built-in features before the message loop starts. This also
 // resolves each feature's settings and probes its availability.
