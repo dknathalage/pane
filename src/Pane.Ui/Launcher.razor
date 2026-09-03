@@ -77,7 +77,25 @@
 
     // Populate with everything on open (Raycast-style), so the launcher is
     // immediately useful and empty-query results rank by BaseScore.
-    protected override async Task OnInitializedAsync() => await RunQuery();
+    protected override async Task OnInitializedAsync()
+    {
+        Window.VisibilityChanged += OnVisibilityChanged;
+        await RunQuery();
+    }
+
+    /// <summary>
+    /// The host showed or dismissed the window. Either way we reset to a blank
+    /// launcher; on show we also pull focus back into the search box.
+    /// </summary>
+    void OnVisibilityChanged(bool visible) => _ = InvokeAsync(async () =>
+    {
+        _showSettings = false;
+        _text = "";
+        _selected = 0;
+        await RunQuery();
+        if (visible && _jsInitialized)
+            await JS.InvokeVoidAsync("paneWindow.focusAndSelect");
+    });
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -96,9 +114,13 @@
     [JSInvokable]
     public void OnContentResized(int height) => Window.SetHeight(height);
 
-    /// <summary>JS callback: the window lost focus — dismiss the overlay (Spotlight-style).</summary>
+    /// <summary>JS callback: the window lost focus (a click outside) — vanish.</summary>
     [JSInvokable]
-    public void OnWindowBlur() => Window.Hide();
+    public void OnWindowBlur()
+    {
+        if (!Window.IsVisible) return;   // already dismissed; nothing to do
+        Window.Hide();
+    }
 
     void OpenSettings()
     {
@@ -171,9 +193,8 @@
                 }
                 else
                 {
-                    // Spotlight-style: Escape dismisses the launcher.
-                    _text = "";
-                    await RunQuery();
+                    // Spotlight-style: Escape vanishes the launcher (the host
+                    // clears the query via VisibilityChanged).
                     Window.Hide();
                 }
                 break;
@@ -192,5 +213,9 @@
         }
     }
 
-    public void Dispose() => _self?.Dispose();
+    public void Dispose()
+    {
+        Window.VisibilityChanged -= OnVisibilityChanged;
+        _self?.Dispose();
+    }
 }

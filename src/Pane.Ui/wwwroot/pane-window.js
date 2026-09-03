@@ -13,9 +13,27 @@ window.paneWindow = (function () {
         return document.querySelector(".pane-search");
     }
 
+    // Keep the caret in the search box. NEVER select() here: this runs after
+    // every render (i.e. every keystroke), and a selection would make the next
+    // character overwrite what was already typed.
     function focusSearch() {
         const el = searchInput();
-        if (el && document.activeElement !== el) el.focus();
+        if (!el) return;
+        if (document.activeElement !== el) el.focus();
+        // Right after the window is brought forward the webview may not be key
+        // yet, so the focus() above can be dropped. Retry on the next frame.
+        requestAnimationFrame(() => {
+            const again = searchInput();
+            if (again && document.activeElement !== again) again.focus();
+        });
+    }
+
+    // Used only when the window is (re)shown, where selecting the leftover
+    // query is the point — type to replace it.
+    function focusAndSelectSearch() {
+        focusSearch();
+        const el = searchInput();
+        if (el) el.select();
     }
 
     return {
@@ -39,5 +57,6 @@ window.paneWindow = (function () {
         },
 
         focus: focusSearch,
+        focusAndSelect: focusAndSelectSearch,
     };
 })();

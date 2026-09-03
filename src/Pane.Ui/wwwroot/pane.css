@@ -399,3 +399,78 @@ kbd {
 .pane-settings-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }
 .pane-settings-row .pane-text { flex: 1; }
 .pane-settings-row input[type="checkbox"] { flex: 0 0 auto; }
+
+/* ── Feature settings ──────────────────────────────────────────────────── */
+.pane-feature { border-bottom: 1px solid var(--border); }
+.pane-feature:last-child { border-bottom: none; }
+.pane-feature.is-inactive .pane-icon,
+.pane-feature.is-inactive .pane-title { opacity: 0.55; }
+
+.pane-disclosure {
+    flex: 0 0 auto;
+    width: 18px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0;
+}
+.pane-disclosure:hover { color: var(--fg); }
+
+.pane-warn { color: var(--danger); }
+
+.pane-feature-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 12px 14px 40px;
+}
+
+.pane-setting {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.pane-setting-label {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 13px;
+}
+
+.pane-setting-help {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.pane-setting input[type="text"],
+.pane-setting input[type="number"],
+.pane-setting textarea {
+    flex: 0 0 200px;
+    background: var(--bg-elev);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    user-select: text;
+}
+
+.pane-setting textarea {
+    resize: vertical;
+    line-height: 1.4;
+    white-space: pre;
+}
+
+.pane-setting input:focus,
+.pane-setting textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.pane-setting input[type="number"] { flex: 0 0 80px; }

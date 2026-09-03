@@ -1,3 +1,4 @@
+@using System.Text.Json.Nodes
 @using Pane.Core.Contracts
 @using Pane.Core.Query
 @using Pane.Core.Settings
@@ -7,31 +8,67 @@
 <div class="pane-settings-list">
     @foreach (var f in Dispatcher.Features)
     {
-        <label class="pane-settings-row">
-            <span class="pane-icon">@f.Icon</span>
-            <span class="pane-text">
-                <span class="pane-title">@f.Name</span>
-                @if (!string.IsNullOrEmpty(f.Keyword))
-                {
-                    <span class="pane-subtitle">keyword: <code>@f.Keyword</code></span>
-                }
-            </span>
-            <input type="checkbox" checked="@(!_disabled.Contains(f.Id))"
-                   @onchange="e => Toggle(f.Id, (bool)e.Value!)" />
-        </label>
+        var open = _expanded.Contains(f.Id);
+        <div class="pane-feature @(f.IsActive ? "" : "is-inactive")">
+            <div class="pane-settings-row">
+                <button class="pane-disclosure" title="@(open ? "Collapse" : "Configure")"
+                        @onclick="() => Toggle(f.Id)">@(open ? "▾" : "▸")</button>
+                <span class="pane-icon">@f.Descriptor.Icon</span>
+                <span class="pane-text">
+                    <span class="pane-title">@f.Descriptor.Name</span>
+                    <span class="pane-subtitle">
+                        @if (!f.Availability.IsAvailable)
+                        {
+                            <span class="pane-warn">Unavailable — @f.Availability.Reason</span>
+                        }
+                        else if (!string.IsNullOrEmpty(f.Config.Keyword))
+                        {
+                            <text>keyword: </text><code>@f.Config.Keyword</code>
+                        }
+                        else
+                        {
+                            <text>no keyword</text>
+                        }
+                    </span>
+                </span>
+                <input type="checkbox" checked="@f.Config.Enabled"
+                       @onchange="e => Set(f, FeatureConfig.EnabledKey, JsonValue.Create((bool)e.Value!))" />
+            </div>
+
+            @if (open)
+            {
+                <div class="pane-feature-settings">
+                    @foreach (var s in FeatureConfig.UniversalSettings(f.Descriptor).Concat(f.Settings))
+                    {
+                        @if (s.Key != FeatureConfig.EnabledKey)
+                        {
+                            <Setting Definition="s" Config="f.Config"
+                                     OnChange="v => Set(f, s.Key, v)" />
+                        }
+                    }
+                </div>
+            }
+        </div>
     }
 </div>
 
 @code {
-    HashSet<string> _disabled = new();
+    readonly HashSet<string> _expanded = new();
 
-    protected override void OnInitialized() => _disabled = Settings.Load().DisabledPlugins;
-
-    void Toggle(string id, bool enabled)
+    void Toggle(string id)
     {
-        if (enabled) _disabled.Remove(id); else _disabled.Add(id);
-        var s = Settings.Load() with { DisabledPlugins = _disabled };
-        Settings.Save(s);
+        if (!_expanded.Remove(id)) _expanded.Add(id);
+    }
+
+    // Every edit writes one key and re-resolves the whole dispatcher, so the row
+    // immediately reflects the new config AND the re-checked availability — e.g.
+    // pointing VSCode at a real "code" binary flips it back to available.
+    void Set(FeatureView f, string key, JsonNode? value)
+    {
+        var stored = Settings.Load();
+        var values = stored.FeatureValues(f.Id);
+        values[key] = value;
+        Settings.Save(stored.WithFeature(f.Id, values));
         Dispatcher.ReloadSettings();
     }
 }

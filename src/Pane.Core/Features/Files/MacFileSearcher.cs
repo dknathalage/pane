@@ -3,6 +3,8 @@ namespace Pane.Core.Features.Files;
 /// <summary>macOS backend: queries Spotlight via <c>mdfind</c>, scoped to $HOME.</summary>
 public sealed class MacFileSearcher : IFileSearcher
 {
+    public bool IsAvailable => ExecutableProbe.Exists("mdfind");
+
     public IReadOnlyList<FileHit> Search(string terms, int max, CancellationToken ct)
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

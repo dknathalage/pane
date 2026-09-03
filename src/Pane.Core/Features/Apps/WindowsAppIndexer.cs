@@ -2,18 +2,18 @@ namespace Pane.Core.Features.Apps;
 
 public sealed class WindowsAppIndexer : IAppIndexer
 {
-    public IEnumerable<AppEntry> Index()
+    public IReadOnlyList<string> DefaultDirectories { get; } = new[]
     {
-        var dirs = new[]
-        {
-            Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-                @"Microsoft\Windows\Start Menu\Programs"),
-            Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                @"Microsoft\Windows\Start Menu\Programs")
-        };
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            @"Microsoft\Windows\Start Menu\Programs"),
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            @"Microsoft\Windows\Start Menu\Programs"),
+    };
 
+    public IEnumerable<AppEntry> Index(IReadOnlyList<string> dirs)
+    {
         foreach (var dir in dirs)
         {
             if (!Directory.Exists(dir)) continue;

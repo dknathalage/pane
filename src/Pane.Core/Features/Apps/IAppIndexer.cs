@@ -4,5 +4,8 @@ public record AppEntry(string Name, string LaunchTarget);
 
 public interface IAppIndexer
 {
-    IEnumerable<AppEntry> Index();
+    /// <summary>Where this platform normally keeps applications; the declared default for the "dirs" setting.</summary>
+    IReadOnlyList<string> DefaultDirectories { get; }
+
+    IEnumerable<AppEntry> Index(IReadOnlyList<string> dirs);
 }

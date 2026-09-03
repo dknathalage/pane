@@ -1,0 +1,61 @@
+@using System.Text.Json.Nodes
+@using Pane.Core.Contracts
+
+@* Renders one declared setting. The feature owns the schema; this is the only
+   place that knows how each kind of setting looks. *@
+<label class="pane-setting">
+    <span class="pane-setting-label">
+        @Definition.Label
+        @if (!string.IsNullOrEmpty(Definition.Help))
+        {
+            <span class="pane-setting-help">@Definition.Help</span>
+        }
+    </span>
+
+    @switch (Definition)
+    {
+        case BoolSetting b:
+            <input type="checkbox" checked="@Config.GetBool(b.Key)"
+                   @onchange="e => OnChange.InvokeAsync(JsonValue.Create((bool)e.Value!))" />
+            break;
+
+        case IntSetting i:
+            <input type="number" min="@i.Min" max="@i.Max" value="@Config.GetInt(i.Key)"
+                   @onchange="e => OnChange.InvokeAsync(ParseInt(e.Value, i))" />
+            break;
+
+        case TextSetting t:
+            <input type="text" value="@CurrentText(t)" placeholder="@t.Default"
+                   @onchange="e => OnChange.InvokeAsync(JsonValue.Create(e.Value?.ToString() ?? string.Empty))" />
+            break;
+
+        case PathsSetting p:
+            <textarea rows="@Math.Clamp(Config.GetPaths(p.Key).Count + 1, 2, 6)"
+                      @onchange="e => OnChange.InvokeAsync(ParseLines(e.Value))">@string.Join("\n", Config.GetPaths(p.Key))</textarea>
+            break;
+    }
+</label>
+
+@code {
+    [Parameter, EditorRequired] public SettingDefinition Definition { get; set; } = default!;
+    [Parameter, EditorRequired] public FeatureConfig Config { get; set; } = default!;
+    [Parameter] public EventCallback<JsonNode?> OnChange { get; set; }
+
+    // The keyword is the one setting whose "cleared" state is meaningful, so it is
+    // shown as blank rather than falling back to its default.
+    string CurrentText(TextSetting t) =>
+        t.Key == FeatureConfig.KeywordKey ? Config.Keyword ?? "" : Config.GetText(t.Key);
+
+    static JsonNode? ParseInt(object? raw, IntSetting def) =>
+        int.TryParse(raw?.ToString(), out var n)
+            ? JsonValue.Create(Math.Clamp(n, def.Min, def.Max))
+            : JsonValue.Create(def.Default);
+
+    static JsonNode ParseLines(object? raw)
+    {
+        var arr = new JsonArray();
+        foreach (var line in (raw?.ToString() ?? "").Split('\n'))
+            if (line.Trim() is { Length: > 0 } v) arr.Add(v);
+        return arr;
+    }
+}

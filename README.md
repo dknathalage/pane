@@ -4,24 +4,30 @@ A macOS spotlight-style launcher — press a hotkey, type, act. Ships as a singl
 
 ## Features
 
-| Feature | Activation | What it does |
-|---------|-----------|--------------|
-| **Applications** | (type anything) | Fuzzy-searches installed apps and launches them |
-| **Files** | `/` keyword | Searches files and folders on disk; supports `*` / `?` wildcards |
-| **Calculator** | `=` keyword | Evaluates math expressions inline |
-| **Scripts** | `>` keyword | Lists and runs shell scripts from `~/.config/pane/scripts/` |
-| **VSCode Repos** | (type anything) | Finds git repos under `~/repos/` and opens them in VS Code |
+| Feature | What it does | Optional keyword |
+|---------|--------------|------------------|
+| **Applications** | Fuzzy-searches installed apps and launches them | — |
+| **Files** | Searches files and folders on disk; supports `*` / `?` wildcards | `/` |
+| **Calculator** | Evaluates math expressions inline | `=` |
+| **Scripts** | Lists and runs shell scripts | `>` |
+| **VSCode Repos** | Finds git repos under `~/repos/` and opens them in VS Code | — |
 
 All five features are always present — no downloads, no plugins, no marketplace.
+
+Every feature answers a plain query out of the box; keywords are optional
+accelerators that narrow the results to one feature. A feature that can't run on
+this machine — no `code` binary, no script folder, no search index — is skipped
+automatically and says why in Settings.
 
 ## Usage
 
 1. Press **Alt+Space** (default hotkey) to open the launcher.
-2. Type to search across Applications and VSCode Repos.
-3. Prefix your query to activate a specific feature:
-   - `/filename` — file search
-   - `= 2 + 2` — calculator
-   - `> scriptname` — run a script
+2. Type to search across every available feature — `2+2`, an app name, a repo, a
+   filename all work with no prefix.
+3. Optionally prefix your query to narrow it to one feature:
+   - `/filename` — files only
+   - `= 2 + 2` — calculator only
+   - `> scriptname` — scripts only
 4. Press **Enter** or click a result to act on it.
 5. Press **Escape** to dismiss.
 
@@ -31,6 +37,10 @@ Click the gear icon (or open Settings from the launcher) to:
 
 - **Enable / disable** individual features.
 - **Change the global hotkey** (e.g. `Ctrl+Space`).
+- **Configure each feature.** Expand a row to edit its keyword, its ranking
+  priority, and its own settings — the folders Applications and Scripts scan, the
+  editor VSCode Repos opens, how many results Files returns and how long it waits
+  before searching, the Calculator's decimal places.
 
 Settings are saved to `~/.config/pane/settings.json`.
 
