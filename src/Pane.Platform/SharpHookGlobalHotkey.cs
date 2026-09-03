@@ -1,6 +1,8 @@
 using SharpHook;
 using SharpHook.Data;
 
+using Pane.Core.Settings;
+
 namespace Pane.Platform;
 
 /// <summary>

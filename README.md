@@ -33,14 +33,17 @@ automatically and says why in Settings.
 
 ## Settings
 
-Click the gear icon (or open Settings from the launcher) to:
+Search for "settings" in the launcher to open it. The page is a sidebar of tabs —
+**General**, then one tab per feature:
 
-- **Enable / disable** individual features.
-- **Change the global hotkey** (e.g. `Ctrl+Space`).
-- **Configure each feature.** Expand a row to edit its keyword, its ranking
-  priority, and its own settings — the folders Applications and Scripts scan, the
-  editor VSCode Repos opens, how many results Files returns and how long it waits
-  before searching, the Calculator's decimal places.
+- **General** — the global hotkey (e.g. `Ctrl+Space`). A combo needs a modifier and
+  a key; anything else is refused rather than saved. Applies when Pane restarts.
+- **A feature tab** — enable or disable it, change its keyword or ranking priority,
+  and edit its own settings: the folders Applications and Scripts scan, the editor
+  VSCode Repos opens, how many results Files returns and how long it waits before
+  searching, the Calculator's decimal places.
+
+A feature that can't run here is labelled in the sidebar and says why on its tab.
 
 Settings are saved to `~/.config/pane/settings.json`.
 

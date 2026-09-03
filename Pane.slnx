@@ -7,5 +7,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Pane.Core.Tests/Pane.Core.Tests.csproj" />
+    <Project Path="tests/Pane.Ui.Tests/Pane.Ui.Tests.csproj" />
   </Folder>
 </Solution>
