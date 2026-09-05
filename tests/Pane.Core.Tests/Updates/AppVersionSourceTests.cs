@@ -33,9 +33,13 @@ public class AppVersionSourceTests
     [Fact]
     public void Current_never_throws_even_with_no_entry_assembly_attribute()
     {
-        // Under the test host there is no stamped version; the contract is that
-        // this degrades to Zero rather than blowing up at startup.
-        var v = AppVersionSource.Current;
-        Assert.True(v >= AppVersion.Zero);
+        // The entry assembly under `dotnet test` is the test host itself,
+        // which does carry its own AssemblyInformationalVersionAttribute (its
+        // own SDK version, e.g. "17.14.1") — so this can't assert Zero, and
+        // "v >= AppVersion.Zero" is true for every AppVersion and asserts
+        // nothing. What this test actually pins is narrower: that reading
+        // Current when there is no Pane-specific version stamped does not
+        // throw. A failing call is the only way this test can fail.
+        _ = AppVersionSource.Current;
     }
 }
