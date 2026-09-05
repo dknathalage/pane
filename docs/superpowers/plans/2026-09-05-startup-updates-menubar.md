@@ -1714,11 +1714,14 @@ public class MacUpdateInstallerTests
 
     // ── The handoff script ─────────────────────────────────────────────────
 
+    // Deliberately non-overlapping roots: if newBundle sat inside payloadDir,
+    // asserting on the payload path would be satisfied by the NEW= line alone
+    // and the cleanup assertion could not fail.
     static string Script() => MacUpdateInstaller.BuildHelperScript(
         pid: 4242,
-        newBundle: "/tmp/pane-dl/Pane.app",
+        newBundle: "/tmp/pane-extracted/Pane.app",
         target: "/Users/someone/Applications/Pane.app",
-        payloadDir: "/tmp/pane-dl");
+        payloadDir: "/tmp/pane-payload");
 
     [Fact]
     public void The_script_waits_for_our_process_to_exit_before_touching_anything()
@@ -1731,11 +1734,11 @@ public class MacUpdateInstallerTests
     [Fact]
     public void The_script_moves_the_old_bundle_aside_rather_than_deleting_it_outright()
     {
-        // A failed copy must leave a working app, not none.
-        var script = Script();
-
-        Assert.Contains("mv ", script);
-        Assert.Contains(".pane-old", script);
+        // A failed copy must leave a working app, not none. Assert the exact
+        // line: ".pane-old" alone also appears in the BACKUP= assignment, and
+        // "mv " alone also appears in the restore line, so either substring
+        // would still pass with this step deleted.
+        Assert.Contains("mv \"$TARGET\" \"$BACKUP\"", Script());
     }
 
     [Fact]
@@ -1759,7 +1762,8 @@ public class MacUpdateInstallerTests
     [Fact]
     public void The_script_cleans_up_the_downloaded_payload()
     {
-        Assert.Contains("/tmp/pane-dl", Script());
+        // The exact statement, not just the path: the path also appears in NEW=.
+        Assert.Contains("rm -rf \"/tmp/pane-payload\"", Script());
     }
 
     [Fact]
