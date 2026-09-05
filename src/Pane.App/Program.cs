@@ -6,6 +6,8 @@ using Pane.Core.Features.Apps;
 using Pane.Core.Features.Files;
 using Pane.Core.Query;
 using Pane.Core.Settings;
+using Pane.Core.Startup;
+using Pane.Core.Updates;
 using Pane.Platform;
 using Photino.Blazor;
 
@@ -42,6 +44,21 @@ builder.Services.AddSingleton<IGlobalHotkey, SharpHookGlobalHotkey>();
 
 // IFilePicker: osascript-based folder picker for macOS (no ObjC interop).
 builder.Services.AddSingleton<IFilePicker, MacFilePicker>();
+
+// ── Updates + login item ───────────────────────────────────────────────────
+// Both are macOS-only and both refuse to act when Pane is not running from an
+// installed .app (a `dotnet run` dev session), reporting why in Settings rather
+// than corrupting a checkout.
+builder.Services.AddSingleton<IReleaseSource>(_ => new GitHubReleaseSource());
+builder.Services.AddSingleton<IUpdateInstaller>(_ => new MacUpdateInstaller(
+    quitApp: () => MacApp.Terminate()));
+builder.Services.AddSingleton(sp => new UpdateService(
+    sp.GetRequiredService<IReleaseSource>(),
+    sp.GetRequiredService<IUpdateInstaller>(),
+    new UpdateState(Path.Combine(dataRoot, "update-state.json")),
+    AppVersionSource.Current));
+builder.Services.AddSingleton<ILoginItem>(_ =>
+    OperatingSystem.IsMacOS() ? new MacLoginItem() : new UnsupportedLoginItem());
 
 // Window controller: registered now, attached to the real window post-Build.
 // Exposing it via DI lets Blazor (e.g. Escape) hide the window too.
@@ -126,6 +143,21 @@ if (startHidden)
         try { app.MainWindow.Invoke(() => windowController.Hide()); } catch { /* best-effort */ }
     });
 }
+
+// ── Update check ───────────────────────────────────────────────────────────
+// On a background task so a slow or offline network never delays startup, and
+// re-armed every 6h so a long-running instance eventually crosses the 24h
+// staleness boundary rather than checking once per launch and never again.
+var updates = app.Services.GetRequiredService<UpdateService>();
+_ = Task.Run(async () =>
+{
+    while (true)
+    {
+        try { await updates.MaybeAutoCheckAsync(settingsStore.Load().AutoCheckUpdates, CancellationToken.None); }
+        catch { /* a failed check is already a status; never take the app down */ }
+        await Task.Delay(TimeSpan.FromHours(6));
+    }
+});
 
 // ── Run ────────────────────────────────────────────────────────────────────
 // app.Run() is synchronous — it enters the native message loop and returns

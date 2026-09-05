@@ -110,4 +110,23 @@ internal static class MacApp
         }
         catch { /* best-effort */ }
     }
+
+    /// <summary>
+    /// Quits via NSApplication so the app tears down the way the Quit menu item
+    /// does. Used by the updater to get out of the way of the swap helper.
+    /// </summary>
+    public static void Terminate()
+    {
+        try
+        {
+            // SharedApp() and SendPtr are the helpers this class already
+            // declares; terminate: returns void, and objc_msgSend's IntPtr
+            // return is simply ignored. Do NOT add a SendVoid overload — that
+            // one belongs to MacStatusBar.
+            var app = SharedApp();
+            if (app != IntPtr.Zero) SendPtr(app, Sel("terminate:"), IntPtr.Zero);
+            else Environment.Exit(0);
+        }
+        catch { Environment.Exit(0); }
+    }
 }
