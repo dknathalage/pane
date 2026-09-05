@@ -53,7 +53,7 @@ SRC_APP="$TMP/dist/Pane.app"
 
 echo "==> Stopping any running Pane"
 pkill -f "Pane.App" 2>/dev/null || true
-launchctl unload "$PLIST" 2>/dev/null || true
+launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
 sleep 1
 
 echo "==> Installing app → $APP"
@@ -82,7 +82,8 @@ cat > "$PLIST" <<PLISTEOF
 </dict>
 </plist>
 PLISTEOF
-launchctl load "$PLIST"
+launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" "$PLIST"
 
 echo "==> Launching Pane"
 open "$APP"
