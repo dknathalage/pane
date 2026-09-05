@@ -28,8 +28,8 @@ says why in Settings.
 
 Pane runs as a background agent: no Dock icon and no entry in the ⌘-Tab switcher,
 and the launcher floats over full-screen apps and follows you across Spaces. It
-lives in the menu bar — left-click the **Pane** item to open the launcher,
-right-click it for **Open Pane** and **Quit Pane**. Quitting from that menu is the
+lives in the menu bar — left-click the magnifying-glass icon to open the
+launcher, right-click it for **Open Pane** and **Quit Pane**. Quitting from that menu is the
 way out, since there is no Dock icon to right-click.
 
 ## Settings
@@ -37,8 +37,12 @@ way out, since there is no Dock icon to right-click.
 Search for "settings" in the launcher to open it. The page is a sidebar of tabs —
 **General**, then one tab per feature:
 
-- **General** — the global hotkey (e.g. `Ctrl+Space`). A combo needs a modifier and
-  a key; anything else is refused rather than saved. Applies when Pane restarts.
+- **General** — the global hotkey (e.g. `Ctrl+Space`); a combo needs a modifier
+  and a key, and anything else is refused rather than saved (it applies when
+  Pane restarts). Also **Start at login**, which registers Pane's LaunchAgent so
+  the hotkey is live from the moment you log in, and the updater: Pane's version,
+  a daily **check for updates** against this repo's GitHub releases, and an
+  **Install and restart** button when a newer release is out.
 - **A feature tab** — enable or disable it, change its keyword or ranking priority,
   and edit its own settings: the folders Applications scans, how many results Files
   returns and how long it waits before searching.
@@ -80,6 +84,24 @@ dotnet build Pane.slnx
 dotnet test -f net10.0
 ./build/make-app.sh osx-arm64 dist/   # or osx-x64
 ```
+
+## Updating
+
+Pane checks GitHub for a newer release once a day and shows it in
+**Settings → General**. Pressing **Install and restart** downloads the release
+for your architecture, verifies it is a well-formed, newer `Pane.app`, replaces
+the installed bundle, and relaunches. Nothing is replaced until that check
+passes, and a failed swap restores the app you had.
+
+Turn the daily check off with **Check for updates automatically**; **Check now**
+always works regardless.
+
+Pane is not code-signed or notarized, so this trusts HTTPS and GitHub's control
+of the release assets — the same trust `install.sh` already asks for. It is not
+signature verification.
+
+Updating needs Pane to be running from an installed `Pane.app`; a `dotnet run`
+development session says so and disables the button.
 
 ## Project layout
 
