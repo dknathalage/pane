@@ -88,4 +88,40 @@ public class SettingsStoreTests
         Assert.Empty(s.Features);
         File.Delete(path);
     }
+
+    [Fact]
+    public void Auto_check_updates_defaults_to_on()
+    {
+        Assert.True(new SettingsStore(TempPath()).Load().AutoCheckUpdates);
+    }
+
+    [Fact]
+    public void Auto_check_updates_roundtrips_when_turned_off()
+    {
+        var path = TempPath();
+        var store = new SettingsStore(path);
+
+        store.Save(new PaneSettings(SettingsStore.DefaultHotkey, new(), AutoCheckUpdates: false));
+
+        Assert.False(store.Load().AutoCheckUpdates);
+        File.Delete(path);
+    }
+
+    [Fact]
+    public void An_older_settings_file_without_the_key_loads_as_on()
+    {
+        // Upgrading must not silently disable update checks, nor discard the
+        // rest of an existing document.
+        var path = TempPath();
+        File.WriteAllText(path, """
+            { "hotkey": "Ctrl+Space", "features": { "files": { "maxResults": 9 } } }
+            """);
+
+        var s = new SettingsStore(path).Load();
+
+        Assert.True(s.AutoCheckUpdates);
+        Assert.Equal("Ctrl+Space", s.Hotkey);
+        Assert.Equal(9, (int)s.Features["files"]["maxResults"]!);
+        File.Delete(path);
+    }
 }

@@ -8,7 +8,10 @@ namespace Pane.Core.Settings;
 /// to its raw settings object; the schema each feature declares turns that into a
 /// typed <see cref="FeatureConfig"/>, so the store itself stays schema-agnostic.
 /// </summary>
-public sealed record PaneSettings(string Hotkey, Dictionary<string, JsonObject> Features)
+public sealed record PaneSettings(
+    string Hotkey,
+    Dictionary<string, JsonObject> Features,
+    bool AutoCheckUpdates = true)
 {
     public JsonObject FeatureValues(string id) =>
         Features.TryGetValue(id, out var o) ? o : new JsonObject();
@@ -26,6 +29,7 @@ public sealed class SettingsStore
     public const string DefaultHotkey = "Alt+Space";
     const string HotkeyKey = "hotkey";
     const string FeaturesKey = "features";
+    const string AutoCheckUpdatesKey = "autoCheckUpdates";
     const string LegacyDisabledKey = "disabledPlugins";
     const string EnabledKey = "enabled";
 
@@ -41,10 +45,11 @@ public sealed class SettingsStore
             if (JsonNode.Parse(File.ReadAllText(_path)) is not JsonObject root) return Defaults();
 
             var hotkey = root[HotkeyKey]?.GetValue<string>();
+            var autoCheck = root[AutoCheckUpdatesKey]?.GetValue<bool>() ?? true;
             var features = ReadFeatures(root);
             MigrateDisabledPlugins(root, features);
 
-            return new PaneSettings(string.IsNullOrEmpty(hotkey) ? DefaultHotkey : hotkey, features);
+            return new PaneSettings(string.IsNullOrEmpty(hotkey) ? DefaultHotkey : hotkey, features, autoCheck);
         }
         catch { return Defaults(); }
     }
@@ -58,6 +63,7 @@ public sealed class SettingsStore
         var root = new JsonObject
         {
             [HotkeyKey] = s.Hotkey,
+            [AutoCheckUpdatesKey] = s.AutoCheckUpdates,
             [FeaturesKey] = features,
         };
 
@@ -65,7 +71,7 @@ public sealed class SettingsStore
         File.WriteAllText(_path, root.ToJsonString(Opts));
     }
 
-    static PaneSettings Defaults() => new(DefaultHotkey, new());
+    static PaneSettings Defaults() => new(DefaultHotkey, new(), AutoCheckUpdates: true);
 
     static Dictionary<string, JsonObject> ReadFeatures(JsonObject root)
     {
