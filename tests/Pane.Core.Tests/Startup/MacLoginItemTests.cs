@@ -75,4 +75,33 @@ public class MacLoginItemTests : IDisposable
     {
         Assert.Equal(Exec, Item().ExpectedExecutable);
     }
+
+    // ── Honesty when launchctl fails (does not invoke real launchctl) ───────
+
+    [Fact]
+    public void A_failing_bootstrap_deletes_the_plist_and_throws_naming_the_failure()
+    {
+        // If bootstrap fails silently, IsEnabled (which only reads the plist)
+        // would report "on" while Pane will not actually start at login.
+        var item = new MacLoginItem(Bundle, _plist,
+            args => args[0] == "bootstrap" ? (1, "service already loaded") : (0, ""));
+
+        var ex = Assert.Throws<InvalidOperationException>(() => item.Enable());
+
+        Assert.Contains("service already loaded", ex.Message);
+        Assert.False(item.IsEnabled);
+    }
+
+    [Fact]
+    public void A_failing_bootout_does_not_prevent_enabling()
+    {
+        // bootout failing (nothing registered yet) is the normal first-install
+        // case and must stay tolerated.
+        var item = new MacLoginItem(Bundle, _plist,
+            args => args[0] == "bootout" ? (1, "no such service") : (0, ""));
+
+        item.Enable();
+
+        Assert.True(item.IsEnabled);
+    }
 }

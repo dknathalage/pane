@@ -10,11 +10,18 @@ public sealed class MacLoginItem : ILoginItem
 {
     readonly string? _bundle;
     readonly string _plistPath;
+    readonly Func<string[], (int ExitCode, string Error)> _runLaunchctl;
 
     public MacLoginItem(string? bundlePath, string plistPath)
+        : this(bundlePath, plistPath, RunLaunchctl) { }
+
+    /// <summary>Test seam: swap in a fake launchctl runner without spawning one.</summary>
+    internal MacLoginItem(string? bundlePath, string plistPath,
+                          Func<string[], (int ExitCode, string Error)> runLaunchctl)
     {
         _bundle = bundlePath;
         _plistPath = plistPath;
+        _runLaunchctl = runLaunchctl;
     }
 
     public MacLoginItem()
@@ -57,13 +64,23 @@ public sealed class MacLoginItem : ILoginItem
 
         // Tolerated: bootout fails when nothing is registered, which is the
         // normal case. It exists so re-enabling over a stale agent works.
-        Launchctl("bootout", Domain());
-        Launchctl("bootstrap", GuiDomain(), _plistPath);
+        _runLaunchctl(["bootout", Domain()]);
+
+        var (exitCode, error) = _runLaunchctl(["bootstrap", GuiDomain(), _plistPath]);
+        if (exitCode != 0)
+        {
+            // IsEnabled only reads the plist we just wrote, so leaving it in
+            // place here would report "on" while launchd never actually has
+            // the job — delete it so the checkbox reflects reality.
+            try { File.Delete(_plistPath); } catch { }
+            throw new InvalidOperationException(
+                $"launchctl bootstrap failed (exit {exitCode}): {error}".TrimEnd());
+        }
     }
 
     public void Disable()
     {
-        Launchctl("bootout", Domain());
+        _runLaunchctl(["bootout", Domain()]);
         try { File.Delete(_plistPath); } catch { /* already gone is success */ }
     }
 
@@ -82,17 +99,30 @@ public sealed class MacLoginItem : ILoginItem
         return int.TryParse(id.StandardOutput.ReadToEnd().Trim(), out var uid) ? uid : 0;
     }
 
-    static void Launchctl(params string[] args)
+    static (int ExitCode, string Error) RunLaunchctl(string[] args)
     {
         var info = new ProcessStartInfo("/bin/launchctl")
         {
             RedirectStandardError = true,
-            RedirectStandardOutput = true,
             UseShellExecute = false,
         };
         foreach (var a in args) info.ArgumentList.Add(a);
 
         using var process = Process.Start(info);
-        process?.WaitForExit(10_000);
+        if (process is null) return (-1, "could not start /bin/launchctl");
+
+        // Read stderr asynchronously so a chatty failure can't deadlock this
+        // against WaitForExit (a full pipe would otherwise block the process
+        // from exiting while we block waiting for it to exit).
+        var errorTask = process.StandardError.ReadToEndAsync();
+
+        if (!process.WaitForExit(10_000))
+        {
+            try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+            return (-1, "launchctl timed out after 10s");
+        }
+
+        var error = errorTask.Wait(1_000) ? errorTask.Result : "";
+        return (process.ExitCode, error.Trim());
     }
 }

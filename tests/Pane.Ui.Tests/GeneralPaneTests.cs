@@ -20,7 +20,7 @@ public class GeneralPaneTests : IDisposable
         public bool CanInstall { get; set; } = true;
         public string? UnavailableReason { get; set; }
         public bool Ran;
-        public Task InstallAsync(ReleaseAsset asset, AppVersion expected,
+        public Task InstallAsync(ReleaseAsset asset, AppVersion mustExceed,
                                  IProgress<int> progress, CancellationToken ct)
         {
             Ran = true;
@@ -33,7 +33,12 @@ public class GeneralPaneTests : IDisposable
         public bool CanManage { get; set; } = true;
         public string? UnavailableReason { get; set; }
         public bool IsEnabled { get; set; }
-        public void Enable() => IsEnabled = true;
+        public Exception? ThrowOnEnable;
+        public void Enable()
+        {
+            if (ThrowOnEnable is { } ex) throw ex;
+            IsEnabled = true;
+        }
         public void Disable() => IsEnabled = false;
     }
 
@@ -110,6 +115,22 @@ public class GeneralPaneTests : IDisposable
         Render().Find("input[name=startAtLogin]").Change(false);
 
         Assert.False(_login.IsEnabled);
+    }
+
+    [Fact]
+    public void When_enabling_throws_the_checkbox_stays_unticked_and_the_message_is_shown()
+    {
+        // A failing launchctl bootstrap (e.g. surfaced by MacLoginItem as an
+        // InvalidOperationException) must not leave the checkbox showing "on"
+        // while Pane will not actually start at login.
+        _login.ThrowOnEnable = new InvalidOperationException("launchctl bootstrap failed (exit 1): boom");
+
+        var page = Render();
+        page.Find("input[name=startAtLogin]").Change(true);
+
+        Assert.False(_login.IsEnabled);
+        Assert.False(page.Find("input[name=startAtLogin]").HasAttribute("checked"));
+        Assert.Contains("launchctl bootstrap failed", page.Markup);
     }
 
     [Fact]
