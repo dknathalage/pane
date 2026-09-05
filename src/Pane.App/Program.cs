@@ -50,8 +50,14 @@ builder.Services.AddSingleton<IFilePicker, MacFilePicker>();
 // installed .app (a `dotnet run` dev session), reporting why in Settings rather
 // than corrupting a checkout.
 builder.Services.AddSingleton<IReleaseSource>(_ => new GitHubReleaseSource());
-builder.Services.AddSingleton<IUpdateInstaller>(_ => new MacUpdateInstaller(
-    quitApp: () => MacApp.Terminate()));
+builder.Services.AddSingleton<IUpdateInstaller>(sp => new MacUpdateInstaller(
+    // quitApp runs whenever the InstallAsync await chain resumes, which is not
+    // guaranteed to be the main thread. [NSApp terminate:] is not thread-safe
+    // off it, so marshal through AppWindowController the same way every other
+    // native call that can run off-thread already does (Program.cs's
+    // MainWindow.Invoke below, AppWindowController's own doc comment). Cannot
+    // capture `app` directly here — it is declared later in this file.
+    quitApp: () => sp.GetRequiredService<AppWindowController>().Invoke(MacApp.Terminate)));
 builder.Services.AddSingleton(sp => new UpdateService(
     sp.GetRequiredService<IReleaseSource>(),
     sp.GetRequiredService<IUpdateInstaller>(),

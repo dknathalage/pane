@@ -74,4 +74,18 @@ internal sealed class AppWindowController : IWindowController
         _window.SetHeight(clamped);
         if (_isVisible) _window.Centered = true;   // keep it centred as it grows/shrinks
     }
+
+    /// <summary>
+    /// Marshals a native call onto the window's thread, for callers that may
+    /// run off it — e.g. the updater's quitApp callback, which resumes on
+    /// whichever thread an awaited Task lands on. Native calls like
+    /// MacApp.Terminate() are not thread-safe off the main thread (see
+    /// Program.cs's "window calls crash off-thread" and the callers-are-all-
+    /// on-the-main-thread note above).
+    /// </summary>
+    public void Invoke(Action action)
+    {
+        if (_window is null) { action(); return; }   // not attached yet — best effort
+        _window.Invoke(action);
+    }
 }
