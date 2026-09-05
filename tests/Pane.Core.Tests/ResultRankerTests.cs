@@ -4,20 +4,20 @@ using Xunit;
 
 public class ResultRankerFeatureDescriptorTests
 {
-    static readonly FeatureDescriptor Calc =
-        new("calc", "Calculator", "🧮", "=", 10, new[] { "calc", "math", "=" });
+    static readonly FeatureDescriptor Keyworded =
+        new("kw", "Keyworded", "🔑", "=", 10, new[] { "kw", "=" });
 
     [Fact]
     public void EmptyQuery_KeepsResult_ScoredByBaseAndPriority()
     {
         var ranker = new ResultRanker(new FuzzyMatcher());
-        var r = new PaneResult("= 4", "Copy", "🧮", 100, () => Task.CompletedTask, "2+2");
+        var r = new PaneResult("= 4", "Copy", "🔑", 100, () => Task.CompletedTask, "2+2");
         var q = new PaneQuery("=2+2", "=", "2+2");
 
-        var scored = ranker.Rank(q, Calc, Calc.Priority, new[] { r }).ToList();
+        var scored = ranker.Rank(q, Keyworded, Keyworded.Priority, new[] { r }).ToList();
 
         Assert.Single(scored);
-        Assert.Equal("calc", scored[0].PluginId);
+        Assert.Equal("kw", scored[0].PluginId);
     }
 }
 
@@ -66,9 +66,9 @@ public class ResultRankerTests
     [Fact]
     public void Token_matching_plugin_keyword_lets_other_token_match_the_item()
     {
-        // "tray" hits the title; "code" hits the plugin's keyword → still matches.
-        var meta = new FeatureDescriptor("vscode", "VSCode Repos", "📂", null, 0,
-            new[] { "code", "repo", "vscode" });
+        // "tray" hits the title; "code" hits the feature's keyword → still matches.
+        var meta = new FeatureDescriptor("beta", "Beta", "📂", null, 0,
+            new[] { "code", "repo", "beta" });
         var q = new PaneQuery("tray code", null, "tray code");
         var ranked = _ranker.Rank(q, meta, meta.Priority, new[] { R("cloudtray", search: "/Users/x/repos/cloudtray") }).ToList();
         Assert.Single(ranked);

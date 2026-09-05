@@ -8,8 +8,8 @@ namespace Pane.Core.Features.Files;
 /// <summary>
 /// Searches the OS's native file index. It answers plain queries out of the box —
 /// the "/" keyword is an accelerator that shows files only, not a requirement — and
-/// carries a negative default priority so file hits sit below apps, scripts and
-/// repos rather than flooding an ordinary query.
+/// carries a negative default priority so file hits sit below apps rather than
+/// flooding an ordinary query.
 /// </summary>
 public sealed class FilesFeature : IPaneFeature
 {

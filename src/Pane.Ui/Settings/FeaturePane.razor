@@ -35,8 +35,8 @@
     [Parameter] public EventCallback OnChanged { get; set; }
 
     // Every edit writes one key and re-resolves the dispatcher, so the form
-    // reflects the new config AND the re-checked availability — pointing VSCode at
-    // a real "code" binary flips it back to available without reopening settings.
+    // reflects the new config AND the re-checked availability — pointing Files at
+    // a working index flips it back to available without reopening settings.
     async Task Set(string key, JsonNode? value)
     {
         var stored = Settings.Load();

@@ -84,11 +84,11 @@ public class QueryDispatcherTests
     [Fact]
     public async Task Unavailable_feature_is_excluded_even_though_it_is_enabled()
     {
-        var vscode = new FakeFeature("vscode", titles: "repo")
+        var beta = new FakeFeature("beta", titles: "repo")
         {
-            Availability = FeatureAvailability.Unavailable("code binary not found"),
+            Availability = FeatureAvailability.Unavailable("backend not found"),
         };
-        var d = await BuildAsync(NewStore(), vscode);
+        var d = await BuildAsync(NewStore(), beta);
 
         Assert.Empty(await d.DispatchAsync("repo", CancellationToken.None));
         Assert.True(d.Features.Single().Config.Enabled);
@@ -97,15 +97,15 @@ public class QueryDispatcherTests
     [Fact]
     public async Task Availability_is_surfaced_with_its_reason_for_the_settings_ui()
     {
-        var vscode = new FakeFeature("vscode", titles: "repo")
+        var beta = new FakeFeature("beta", titles: "repo")
         {
-            Availability = FeatureAvailability.Unavailable("code binary not found"),
+            Availability = FeatureAvailability.Unavailable("backend not found"),
         };
-        var d = await BuildAsync(NewStore(), vscode);
+        var d = await BuildAsync(NewStore(), beta);
 
         var view = d.Features.Single();
         Assert.False(view.Availability.IsAvailable);
-        Assert.Equal("code binary not found", view.Availability.Reason);
+        Assert.Equal("backend not found", view.Availability.Reason);
     }
 
     [Fact]

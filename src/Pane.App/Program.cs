@@ -3,10 +3,7 @@ using Pane.Core.Contracts;
 using Pane.App;
 using Pane.Core;
 using Pane.Core.Features.Apps;
-using Pane.Core.Features.Calculator;
 using Pane.Core.Features.Files;
-using Pane.Core.Features.Scripts;
-using Pane.Core.Features.VSCode;
 using Pane.Core.Query;
 using Pane.Core.Settings;
 using Pane.Platform;
@@ -35,9 +32,6 @@ builder.Services.AddSingleton(settingsStore);
 // settings, and asks each whether it can run on this machine.
 builder.Services.AddSingleton<IPaneFeature, AppsFeature>();
 builder.Services.AddSingleton<IPaneFeature, FilesFeature>();
-builder.Services.AddSingleton<IPaneFeature, CalculatorFeature>();
-builder.Services.AddSingleton<IPaneFeature, ScriptsFeature>();
-builder.Services.AddSingleton<IPaneFeature, VSCodeFeature>();
 
 builder.Services.AddSingleton(sp => new QueryDispatcher(
     sp.GetRequiredService<IFuzzyMatcher>(),

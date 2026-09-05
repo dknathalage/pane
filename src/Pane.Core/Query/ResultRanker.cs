@@ -30,8 +30,8 @@ public sealed class ResultRanker
             bool allMatched = true;
 
             // Every token must match SOMETHING — the item (title/path) OR the
-            // plugin (name/keywords). So "tray code" matches the cloudtray repo:
-            // "tray" hits the title, "code" hits the VSCode plugin's keyword.
+            // feature (name/keywords). So "notes file" matches a notes document:
+            // "notes" hits the title, "file" hits the Files feature's keyword.
             foreach (var token in tokens)
             {
                 double item = 0;

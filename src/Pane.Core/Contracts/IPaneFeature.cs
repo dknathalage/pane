@@ -4,8 +4,8 @@ namespace Pane.Core.Contracts;
 public sealed record FeatureContext(string DataDirectory, string HomeDirectory);
 
 /// <summary>
-/// Whether a feature can actually do its job on this machine — VSCode needs the
-/// "code" binary, Scripts needs a script directory. An unavailable feature is
+/// Whether a feature can actually do its job on this machine — Files needs a
+/// working OS search index, for instance. An unavailable feature is
 /// skipped at dispatch without the user having to switch it off, and the reason is
 /// shown in settings so the failure is legible rather than silent.
 /// </summary>
@@ -34,7 +34,7 @@ public interface IPaneFeature
 
     /// <summary>
     /// Re-evaluated after every <see cref="ApplyConfig"/>, since the things a feature
-    /// depends on (an editor path, a scripts directory) are themselves configurable.
+    /// depends on (a search backend, a scan directory) are themselves configurable.
     /// </summary>
     FeatureAvailability CheckAvailability();
 

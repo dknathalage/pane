@@ -46,10 +46,10 @@ public class SettingsStoreTests
         var store = new SettingsStore(path);
         store.Save(new PaneSettings(SettingsStore.DefaultHotkey, new()
         {
-            ["scripts"] = new JsonObject { ["dirs"] = new JsonArray("/a", "/b") },
+            ["alpha"] = new JsonObject { ["dirs"] = new JsonArray("/a", "/b") },
         }));
 
-        var dirs = store.Load().Features["scripts"]["dirs"]!.AsArray();
+        var dirs = store.Load().Features["alpha"]["dirs"]!.AsArray();
         Assert.Equal(new[] { "/a", "/b" }, dirs.Select(d => (string)d!));
     }
 
@@ -58,10 +58,10 @@ public class SettingsStoreTests
     {
         var path = TempPath();
         File.WriteAllText(path, """
-            { "disabledPlugins": ["vscode"], "hotkey": "Alt+Space" }
+            { "disabledPlugins": ["alpha"], "hotkey": "Alt+Space" }
             """);
         var s = new SettingsStore(path).Load();
-        Assert.False((bool)s.Features["vscode"]["enabled"]!);
+        Assert.False((bool)s.Features["alpha"]["enabled"]!);
         File.Delete(path);
     }
 
