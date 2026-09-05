@@ -99,7 +99,11 @@ public sealed class UpdateService
         try
         {
             Set(new UpdateStatus.Downloading(0));
-            await _installer.InstallAsync(available.Asset, available.Release.Version, progress, ct);
+            // The bundle must exceed the RUNNING version, not the release's own
+            // version — those are equal for every real release (make-app.sh
+            // stamps CFBundleShortVersionString from the same tag), so passing
+            // the release's version here would reject every update ever cut.
+            await _installer.InstallAsync(available.Asset, mustExceed: _current, progress, ct);
             Set(new UpdateStatus.Installing());
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)

@@ -50,6 +50,37 @@ public class MacUpdateInstallerTests
     }
 
     [Fact]
+    public void The_script_refuses_to_swap_if_the_process_is_still_alive_after_the_wait()
+    {
+        // The wait loop is bounded (~30s). Falling through to the swap
+        // unconditionally would let the helper replace the bundle underneath a
+        // still-live self-contained .NET process — the exact hazard the
+        // detached-helper design exists to avoid. Assert the exact guard line,
+        // not a loose substring the wait loop's own "kill -0 4242" would
+        // already satisfy.
+        var script = Script();
+
+        // The exact guard block, not loose substrings: "kill -0 4242" and
+        // "exit 1" both already appear elsewhere in the script (the wait loop,
+        // and the backup-move failure path respectively), so either alone
+        // would still pass with this guard deleted outright.
+        var guard = "if kill -0 4242 2>/dev/null; then\n"
+                  + "  echo \"pane: gave up waiting for pid 4242; not swapping\" >&2\n"
+                  + "  rm -rf \"$PAYLOAD\"\n"
+                  + "  exit 1\n"
+                  + "fi";
+        Assert.Contains(guard, script);
+    }
+
+    [Fact]
+    public void The_script_logs_everything_after_handoff_for_a_diagnosable_failure()
+    {
+        // Once handoff happens the app is gone, so a failed swap needs its own
+        // log — there is no other way to see what went wrong.
+        Assert.Contains("pane-update.log", Script());
+    }
+
+    [Fact]
     public void The_script_moves_the_old_bundle_aside_rather_than_deleting_it_outright()
     {
         // Exact statements, not just "mv " and ".pane-old" as loose substrings
@@ -67,6 +98,17 @@ public class MacUpdateInstallerTests
     public void The_script_restores_the_backup_when_the_copy_fails()
     {
         Assert.Contains("mv \"$BACKUP\" \"$TARGET\"", Script());
+    }
+
+    [Fact]
+    public void The_script_copies_with_ditto_not_cp_so_symlinks_and_xattrs_survive()
+    {
+        // Same reason extraction uses ditto over unzip: cp -R is weaker and
+        // would flatten symlinks/xattrs inside the .app that ditto preserves.
+        var script = Script();
+
+        Assert.Contains("ditto \"$NEW\" \"$TARGET\"", script);
+        Assert.DoesNotContain("cp -R \"$NEW\" \"$TARGET\"", script);
     }
 
     [Fact]

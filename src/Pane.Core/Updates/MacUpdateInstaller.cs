@@ -39,7 +39,7 @@ public sealed class MacUpdateInstaller : IUpdateInstaller
         : "Pane is not running from an installed .app bundle, so it cannot update itself. "
           + "Install it with install.sh first.";
 
-    public async Task InstallAsync(ReleaseAsset asset, AppVersion expected,
+    public async Task InstallAsync(ReleaseAsset asset, AppVersion mustExceed,
                                    IProgress<int> progress, CancellationToken ct)
     {
         // Must be the same gate as CanInstall, not just "_bundle is null": a
@@ -63,7 +63,7 @@ public sealed class MacUpdateInstaller : IUpdateInstaller
             // ditto preserves the symlinks and xattrs inside a .app that plain
             // unzip flattens, so the extracted bundle is actually launchable.
             var newBundle = Path.Combine(extracted, "Pane.app");
-            if (BundleLayout.Validate(newBundle, mustExceed: expected) is { } reason)
+            if (BundleLayout.Validate(newBundle, mustExceed) is { } reason)
                 throw new InvalidOperationException(reason);
 
             // Nothing installed has been touched up to this point.
@@ -150,7 +150,12 @@ public sealed class MacUpdateInstaller : IUpdateInstaller
                 UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 #pragma warning restore CA1416
 
-            Process.Start(new ProcessStartInfo("/bin/sh", script) { UseShellExecute = false });
+            // ArgumentList, not the "/bin/sh script" string overload: that
+            // overload runs the path through .NET's argument splitter, so a
+            // TMPDIR containing a space would split it into two arguments.
+            var shInfo = new ProcessStartInfo("/bin/sh") { UseShellExecute = false };
+            shInfo.ArgumentList.Add(script);
+            Process.Start(shInfo);
         }
         catch
         {
@@ -173,6 +178,12 @@ public sealed class MacUpdateInstaller : IUpdateInstaller
     internal static string BuildHelperScript(int pid, string newBundle, string target,
                                              string payloadDir) => $"""
         #!/bin/sh
+        # Once handoff happens the app is gone and the "every failure is a
+        # readable status" contract ends, so log everything from here on —
+        # a failed swap must still be diagnosable.
+        LOGDIR="$TMPDIR"
+        [ -z "$LOGDIR" ] && LOGDIR=/tmp
+        exec >> "$LOGDIR/pane-update.log" 2>&1
         # Written by Pane to replace itself. Safe to delete.
         NEW={ShellQuote(newBundle)}
         TARGET={ShellQuote(target)}
@@ -186,12 +197,24 @@ public sealed class MacUpdateInstaller : IUpdateInstaller
           i=$((i + 1))
         done
 
+        # If it is still alive after the wait, quitApp() failed to terminate it.
+        # Swapping the bundle underneath a live self-contained .NET process is
+        # exactly the hazard this detached-helper design exists to avoid, so
+        # bail out without touching anything installed.
+        if kill -0 {pid} 2>/dev/null; then
+          echo "pane: gave up waiting for pid {pid}; not swapping" >&2
+          rm -rf "$PAYLOAD"
+          exit 1
+        fi
+
         rm -rf "$BACKUP"
         if [ -d "$TARGET" ]; then
           mv "$TARGET" "$BACKUP" || exit 1
         fi
 
-        if cp -R "$NEW" "$TARGET"; then
+        # ditto (not cp -R) so symlinks and xattrs inside the .app survive the
+        # copy the same way they survived extraction.
+        if ditto "$NEW" "$TARGET"; then
           xattr -dr com.apple.quarantine "$TARGET" 2>/dev/null || true
           rm -rf "$BACKUP"
         else

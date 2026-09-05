@@ -22,12 +22,14 @@ public class UpdateServiceTests
         public bool CanInstall { get; set; } = true;
         public string? UnavailableReason { get; set; }
         public ReleaseAsset? Installed;
+        public AppVersion? MustExceed;
         public Exception? Throw;
 
-        public Task InstallAsync(ReleaseAsset asset, AppVersion expected,
+        public Task InstallAsync(ReleaseAsset asset, AppVersion mustExceed,
                                  IProgress<int> progress, CancellationToken ct)
         {
             Installed = asset;
+            MustExceed = mustExceed;
             progress.Report(50);
             if (Throw is not null) return Task.FromException(Throw);
             return Task.CompletedTask;
@@ -271,6 +273,25 @@ public class UpdateServiceTests
 
         Assert.NotNull(installer.Installed);
         Assert.Equal(AssetName(), installer.Installed!.Name);
+    }
+
+    [Fact]
+    public async Task Installing_requires_the_bundle_to_exceed_the_RUNNING_version_not_the_releases()
+    {
+        // Regression: make-app.sh stamps CFBundleShortVersionString from the
+        // same tag as the GitHub release, so a downloaded bundle's own version
+        // always EQUALS the release's version. Passing the release's version as
+        // "mustExceed" would make BundleLayout.Validate reject every real
+        // release ("1.3.0 is not newer than 1.3.0"). It must be the version
+        // this process is currently running.
+        var installer = new FakeInstaller();
+        var svc = Service(new FakeSource { Release = ReleaseWithAsset("1.3.0") }, installer,
+            current: "1.2.0");
+        await svc.CheckAsync(CancellationToken.None);
+
+        await svc.InstallAsync(CancellationToken.None);
+
+        Assert.Equal(new AppVersion(1, 2, 0), installer.MustExceed);
     }
 
     [Fact]

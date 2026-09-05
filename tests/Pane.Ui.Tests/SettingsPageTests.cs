@@ -17,7 +17,7 @@ public class SettingsPageTests : IDisposable
     {
         public bool CanInstall => false;
         public string? UnavailableReason => "not installed";
-        public Task InstallAsync(ReleaseAsset asset, AppVersion expected,
+        public Task InstallAsync(ReleaseAsset asset, AppVersion mustExceed,
                                  IProgress<int> progress, CancellationToken ct) =>
             Task.CompletedTask;
     }

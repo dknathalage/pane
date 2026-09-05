@@ -13,10 +13,10 @@ public interface IUpdateInstaller
     /// <summary>Why <see cref="CanInstall"/> is false, for the user to read.</summary>
     string? UnavailableReason { get; }
 
-    /// <param name="expected">
-    /// The version the downloaded bundle must actually contain. Checked before
-    /// anything installed is touched.
+    /// <param name="mustExceed">
+    /// The downloaded bundle is rejected unless its own version is strictly
+    /// greater than this. Checked before anything installed is touched.
     /// </param>
-    Task InstallAsync(ReleaseAsset asset, AppVersion expected,
+    Task InstallAsync(ReleaseAsset asset, AppVersion mustExceed,
                       IProgress<int> progress, CancellationToken ct);
 }
