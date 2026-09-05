@@ -30,11 +30,16 @@ internal static class MacStatusBar
     [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern void SendWithNUInt(IntPtr r, IntPtr s, nuint a);
     [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern IntPtr SendMenuItem(IntPtr r, IntPtr s, IntPtr title, IntPtr action, IntPtr key);
     [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern nint SendNInt(IntPtr r, IntPtr s);
+    [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern IntPtr SendTwoPtr(IntPtr r, IntPtr s, IntPtr a, IntPtr b);
+    [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern void SendBool(IntPtr r, IntPtr s, [MarshalAs(UnmanagedType.I1)] bool a);
 
     // NSEventMaskLeftMouseUp (1 << NSEventTypeLeftMouseUp) | NSEventMaskRightMouseUp.
     // Without this the button only reports left clicks and the menu is unreachable.
     const nuint LeftAndRightMouseUp = (1 << 2) | (1 << 4);
     const nint RightMouseUp = 4;   // NSEventTypeRightMouseUp
+
+    // The launcher's own glyph. Changing this changes the menu bar icon.
+    const string SymbolName = "magnifyingglass";
 
     static Action? _onClick;
     static IntPtr _item, _target, _menu;   // kept alive for the process lifetime
@@ -49,10 +54,7 @@ internal static class MacStatusBar
 
         var button = Send(_item, Sel("button"));
 
-        var titlePtr = Marshal.StringToHGlobalAnsi(title);
-        var nsTitle = SendPtr(GetClass("NSString"), Sel("stringWithUTF8String:"), titlePtr);
-        Marshal.FreeHGlobal(titlePtr);
-        SendVoid(button, Sel("setTitle:"), nsTitle);
+        SetButtonIcon(button, title);
 
         // A tiny ObjC class with a handleClick: method that calls back into managed code.
         var cls = AllocateClassPair(GetClass("NSObject"), "PaneStatusTarget", 0);
@@ -76,6 +78,33 @@ internal static class MacStatusBar
         SendWithNUInt(button, Sel("sendActionOn:"), LeftAndRightMouseUp);
 
         _menu = BuildMenu();
+    }
+
+    /// <summary>
+    /// An SF Symbol as a template image — macOS then inverts it for light and
+    /// dark menu bars automatically, and it takes far less width than the text
+    /// title it replaces. SF Symbols require macOS 11, which the bundle's
+    /// LSMinimumSystemVersion already demands.
+    ///
+    /// If the symbol cannot be loaded we fall back to the text title: an empty
+    /// status item would be invisible and unclickable, which is worse than ugly.
+    /// </summary>
+    static void SetButtonIcon(IntPtr button, string title)
+    {
+        var image = SendTwoPtr(
+            GetClass("NSImage"),
+            Sel("imageWithSystemSymbolName:accessibilityDescription:"),
+            NSString(SymbolName),
+            NSString(title));
+
+        if (image != IntPtr.Zero)
+        {
+            SendBool(image, Sel("setTemplate:"), true);
+            SendVoid(button, Sel("setImage:"), image);
+            return;
+        }
+
+        SendVoid(button, Sel("setTitle:"), NSString(title));
     }
 
     /// <summary>Right-click menu: open the launcher, or quit.</summary>
