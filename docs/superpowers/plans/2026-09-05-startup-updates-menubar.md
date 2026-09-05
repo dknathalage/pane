@@ -1613,10 +1613,13 @@ public static class BundleLayout
 
         try
         {
-            // In a plist, a <key> is followed by its value as the next sibling.
+            // In a plist the value is the next ELEMENT sibling of its <key>.
+            // ElementsAfterSelf() skips the whitespace text node that a
+            // normally-formatted plist puts between </key> and <string>;
+            // NextNode would return that text node and read nothing.
             var dict = XDocument.Load(plist).Descendants("dict").FirstOrDefault();
             var key = dict?.Elements("key").FirstOrDefault(e => e.Value == VersionKey);
-            var value = (key?.NextNode as XElement)?.Value;
+            var value = key?.ElementsAfterSelf().FirstOrDefault()?.Value;
 
             return AppVersion.TryParse(value, out var v) ? v : null;
         }
@@ -2149,7 +2152,12 @@ public static class LaunchAgentPlist
             var key = dict?.Elements("key")
                 .FirstOrDefault(e => e.Value == "ProgramArguments");
 
-            return (key?.NextNode as XElement)?.Elements("string").FirstOrDefault()?.Value;
+            // ElementsAfterSelf(), not NextNode: in a plist the value is the next
+            // ELEMENT sibling, and a normally-formatted plist puts a whitespace
+            // text node between </key> and the value. NextNode would return that
+            // text node and silently read nothing.
+            var value = key?.ElementsAfterSelf().FirstOrDefault();
+            return value?.Elements("string").FirstOrDefault()?.Value;
         }
         catch { return null; }
     }
