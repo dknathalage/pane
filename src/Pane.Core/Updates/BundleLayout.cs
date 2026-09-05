@@ -41,14 +41,17 @@ public static class BundleLayout
 
         try
         {
-            // In a plist, a <key> is followed by its value as the next sibling.
+            // In a plist the value is the next ELEMENT sibling of its <key>.
+            // ElementsAfterSelf() skips the whitespace text node that a
+            // normally-formatted plist puts between </key> and <string>;
+            // NextNode would return that text node and read nothing.
             var dict = XDocument.Load(plist).Descendants("dict").FirstOrDefault();
             var key = dict?.Elements("key").FirstOrDefault(e => e.Value == VersionKey);
-            var value = (key?.NextNode as XElement)?.Value;
+            var value = key?.ElementsAfterSelf().FirstOrDefault()?.Value;
 
             return AppVersion.TryParse(value, out var v) ? v : null;
         }
-        catch { return null; }
+        catch { return null; } // Unreadable plist → null is the intended contract.
     }
 
     /// <summary>
