@@ -73,6 +73,21 @@ public class BundleLayoutTests : IDisposable
         Assert.Null(BundleLayout.FindEnclosingBundle(_root));
     }
 
+    [Fact]
+    public void A_directory_merely_named_like_an_app_is_not_a_bundle()
+    {
+        // Regression test: under `dotnet run`, AppContext.BaseDirectory is
+        // src/Pane.App/bin/Debug/net10.0, and walking up hits the PROJECT
+        // directory "Pane.App" — which ends in ".app" case-insensitively but has
+        // no Contents/MacOS. Treating that as the installed bundle would point
+        // the updater's swap helper (and the login-item manager) at the source
+        // tree instead of refusing to act. The name alone must not be enough.
+        var lookalike = Path.Combine(_root, "Pane.App", "bin", "Debug", "net10.0");
+        Directory.CreateDirectory(lookalike);
+
+        Assert.Null(BundleLayout.FindEnclosingBundle(lookalike));
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

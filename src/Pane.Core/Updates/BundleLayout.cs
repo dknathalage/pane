@@ -23,12 +23,20 @@ public static class BundleLayout
         var dir = new DirectoryInfo(startDirectory);
         while (dir is not null)
         {
-            if (dir.Name.EndsWith(".app", StringComparison.OrdinalIgnoreCase))
-                return dir.FullName;
+            if (LooksLikeBundle(dir)) return dir.FullName;
             dir = dir.Parent;
         }
         return null;
     }
+
+    // The name alone is not enough. Under `dotnet run` the base directory is
+    // src/Pane.App/bin/Debug/net10.0, and walking up hits the PROJECT directory
+    // "Pane.App" — which ends in ".app" case-insensitively. Treating that as the
+    // installed bundle would point the updater's swap helper at the source tree.
+    // A real bundle also has Contents/MacOS, so require that too.
+    static bool LooksLikeBundle(DirectoryInfo dir) =>
+        dir.Name.EndsWith(".app", StringComparison.OrdinalIgnoreCase)
+        && Directory.Exists(Path.Combine(dir.FullName, "Contents", "MacOS"));
 
     /// <summary>The bundle we are currently running from, or null.</summary>
     public static string? CurrentBundle() => FindEnclosingBundle(AppContext.BaseDirectory);
