@@ -31,11 +31,15 @@ public class MacUpdateInstallerTests
 
     // ── The handoff script ─────────────────────────────────────────────────
 
+    // Deliberately non-overlapping roots: if newBundle sat inside payloadDir
+    // (as an earlier version of this fixture had it), asserting on the payload
+    // path would already be satisfied by the NEW= line alone, and the cleanup
+    // test below could not fail even if the actual cleanup line were deleted.
     static string Script() => MacUpdateInstaller.BuildHelperScript(
         pid: 4242,
-        newBundle: "/tmp/pane-dl/Pane.app",
+        newBundle: "/tmp/pane-extracted/Pane.app",
         target: "/Users/someone/Applications/Pane.app",
-        payloadDir: "/tmp/pane-dl");
+        payloadDir: "/tmp/pane-payload");
 
     [Fact]
     public void The_script_waits_for_our_process_to_exit_before_touching_anything()
@@ -48,11 +52,15 @@ public class MacUpdateInstallerTests
     [Fact]
     public void The_script_moves_the_old_bundle_aside_rather_than_deleting_it_outright()
     {
-        // A failed copy must leave a working app, not none.
+        // Exact statements, not just "mv " and ".pane-old" as loose substrings
+        // — both of those already appear in the *restore* line and the BACKUP
+        // assignment respectively, so they would still be present even if this
+        // specific move (the one that makes the bundle recoverable at all) were
+        // deleted outright.
         var script = Script();
 
-        Assert.Contains("mv ", script);
-        Assert.Contains(".pane-old", script);
+        Assert.Contains("BACKUP=\"$TARGET.pane-old\"", script);
+        Assert.Contains("mv \"$TARGET\" \"$BACKUP\" || exit 1", script);
     }
 
     [Fact]
@@ -76,7 +84,14 @@ public class MacUpdateInstallerTests
     [Fact]
     public void The_script_cleans_up_the_downloaded_payload()
     {
-        Assert.Contains("/tmp/pane-dl", Script());
+        // Exact final rm -rf on the payload variable, not just presence of the
+        // path somewhere in the script — see the fixture comment above for why
+        // a loose Contains(payloadDir) would not have caught this line being
+        // deleted.
+        var script = Script();
+
+        Assert.Contains("PAYLOAD='/tmp/pane-payload'", script);
+        Assert.Contains("rm -rf \"$PAYLOAD\"", script);
     }
 
     [Fact]
@@ -86,8 +101,22 @@ public class MacUpdateInstallerTests
         var script = MacUpdateInstaller.BuildHelperScript(
             1, "/tmp/a b/Pane.app", "/Users/x/My Apps/Pane.app", "/tmp/a b");
 
-        Assert.Contains("\"/Users/x/My Apps/Pane.app\"", script);
-        Assert.Contains("\"/tmp/a b/Pane.app\"", script);
+        Assert.Contains("'/Users/x/My Apps/Pane.app'", script);
+        Assert.Contains("'/tmp/a b/Pane.app'", script);
+    }
+
+    [Fact]
+    public void A_dollar_sign_or_single_quote_in_a_path_survives_literally_rather_than_expanding()
+    {
+        // Double-quoted interpolation (the original implementation) lets the
+        // shell expand "$HOME" or run a command substitution living inside a
+        // path. Single-quoting blocks that — the one thing it can't hold
+        // directly, a literal single quote, must be escaped as '\''.
+        var script = MacUpdateInstaller.BuildHelperScript(
+            1, "/tmp/n$(rm -rf ~)/Pane.app", "/Users/o'brien/$HOME/Pane.app", "/tmp/payload");
+
+        Assert.Contains("'/tmp/n$(rm -rf ~)/Pane.app'", script);
+        Assert.Contains("'/Users/o'\\''brien/$HOME/Pane.app'", script);
     }
 
     [Fact]

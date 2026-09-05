@@ -42,7 +42,11 @@ public sealed class MacUpdateInstaller : IUpdateInstaller
     public async Task InstallAsync(ReleaseAsset asset, AppVersion expected,
                                    IProgress<int> progress, CancellationToken ct)
     {
-        if (_bundle is null) throw new InvalidOperationException(UnavailableReason);
+        // Must be the same gate as CanInstall, not just "_bundle is null": a
+        // non-null bundle string alone does not mean we are actually on macOS,
+        // and everything past this point (ditto, xattr, /bin/sh) only makes
+        // sense there.
+        if (!CanInstall) throw new InvalidOperationException(UnavailableReason);
 
         var work = Path.Combine(Path.GetTempPath(), $"pane-update-{Guid.NewGuid():N}");
         Directory.CreateDirectory(work);
@@ -131,18 +135,32 @@ public sealed class MacUpdateInstaller : IUpdateInstaller
         // temp dir, which macOS reaps.
         var scriptDir = Path.Combine(Path.GetTempPath(), $"pane-swap-{Guid.NewGuid():N}");
         Directory.CreateDirectory(scriptDir);
-        var script = Path.Combine(scriptDir, "swap.sh");
 
-        File.WriteAllText(script,
-            BuildHelperScript(Environment.ProcessId, newBundle, _bundle!, payloadDir));
+        try
+        {
+            var script = Path.Combine(scriptDir, "swap.sh");
 
-        // Reachable only when CanInstall is true, i.e. only on macOS.
+            File.WriteAllText(script,
+                BuildHelperScript(Environment.ProcessId, newBundle, _bundle!, payloadDir));
+
+            // Reachable only when CanInstall is true, i.e. only on macOS —
+            // enforced by InstallAsync's `if (!CanInstall)` guard above.
 #pragma warning disable CA1416
-        File.SetUnixFileMode(script,
-            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            File.SetUnixFileMode(script,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 #pragma warning restore CA1416
 
-        Process.Start(new ProcessStartInfo("/bin/sh", script) { UseShellExecute = false });
+            Process.Start(new ProcessStartInfo("/bin/sh", script) { UseShellExecute = false });
+        }
+        catch
+        {
+            // Unlike payloadDir, scriptDir is not cleaned up by the script
+            // itself (the script can't delete the file it's still executing
+            // from), so a failure here — /bin/sh missing, permission denied —
+            // must clean it up here instead of leaking it.
+            TryDelete(scriptDir);
+            throw;
+        }
 
         _quitApp();
     }
@@ -156,9 +174,10 @@ public sealed class MacUpdateInstaller : IUpdateInstaller
                                              string payloadDir) => $"""
         #!/bin/sh
         # Written by Pane to replace itself. Safe to delete.
-        NEW="{newBundle}"
-        TARGET="{target}"
-        BACKUP="{target}.pane-old"
+        NEW={ShellQuote(newBundle)}
+        TARGET={ShellQuote(target)}
+        BACKUP="$TARGET.pane-old"
+        PAYLOAD={ShellQuote(payloadDir)}
 
         # Wait for Pane to exit (bounded at ~30s so a wedged process can't hang us).
         i=0
@@ -182,8 +201,17 @@ public sealed class MacUpdateInstaller : IUpdateInstaller
         fi
 
         open "$TARGET"
-        rm -rf "{payloadDir}"
+        rm -rf "$PAYLOAD"
         """;
+
+    /// <summary>
+    /// Wraps a value in single quotes so the shell treats it as fully literal:
+    /// unlike double quotes, single quotes also block $ parameter expansion and
+    /// $(...)/backtick command substitution. The one character single quotes
+    /// cannot themselves contain is escaped by closing the quote, inserting an
+    /// escaped literal quote, and reopening it — the standard POSIX idiom.
+    /// </summary>
+    static string ShellQuote(string value) => "'" + value.Replace("'", "'\\''") + "'";
 
     static void TryDelete(string directory)
     {
