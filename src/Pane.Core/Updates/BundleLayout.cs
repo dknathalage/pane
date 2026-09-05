@@ -75,6 +75,16 @@ public static class BundleLayout
         if (!File.Exists(exe))
             return $"The downloaded Pane.app has no Contents/MacOS/{ExecutableName}.";
 
+        // Reachable only on macOS (Validate is only ever called from
+        // MacUpdateInstaller, gated on CanInstall requiring OperatingSystem.
+        // IsMacOS()) — mirrors how MacUpdateInstaller suppresses the same
+        // analyzer for the sibling SetUnixFileMode call.
+#pragma warning disable CA1416
+        var isExecutable = File.GetUnixFileMode(exe).HasFlag(UnixFileMode.UserExecute);
+#pragma warning restore CA1416
+        if (!isExecutable)
+            return $"The downloaded Pane.app's {ExecutableName} is not executable.";
+
         if (ReadBundleVersion(bundlePath) is not { } version)
             return "The downloaded Pane.app has no readable version.";
 

@@ -12,14 +12,25 @@ public class BundleLayoutTests : IDisposable
 
     /// <summary>Builds a Pane.app skeleton; pass version null to omit Info.plist.</summary>
     string MakeBundle(string name = "Pane.app", string? version = "1.3.0",
-                      bool withExecutable = true, bool multilinePlist = false)
+                      bool withExecutable = true, bool executableIsExecutable = true,
+                      bool multilinePlist = false)
     {
         var app = Path.Combine(_root, name);
         var macOs = Path.Combine(app, "Contents", "MacOS");
         Directory.CreateDirectory(macOs);
 
         if (withExecutable)
-            File.WriteAllText(Path.Combine(macOs, BundleLayout.ExecutableName), "#!/bin/sh\n");
+        {
+            var exe = Path.Combine(macOs, BundleLayout.ExecutableName);
+            File.WriteAllText(exe, "#!/bin/sh\n");
+            if (executableIsExecutable)
+            {
+#pragma warning disable CA1416 // test runs on macOS only, like the code under test
+                File.SetUnixFileMode(exe,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+#pragma warning restore CA1416
+            }
+        }
 
         if (version is not null)
         {
@@ -143,6 +154,19 @@ public class BundleLayoutTests : IDisposable
 
         Assert.NotNull(reason);
         Assert.Contains(BundleLayout.ExecutableName, reason);
+    }
+
+    [Fact]
+    public void A_bundle_whose_executable_lacks_the_exec_bit_is_rejected()
+    {
+        // §5 requires the executable to exist AND be executable — a file that
+        // merely exists but was extracted/copied without its exec bit set
+        // would otherwise pass validation and then fail to launch after swap.
+        var reason = BundleLayout.Validate(
+            MakeBundle(executableIsExecutable: false), new AppVersion(1, 2, 0));
+
+        Assert.NotNull(reason);
+        Assert.Contains("not executable", reason);
     }
 
     [Fact]
