@@ -101,7 +101,23 @@ windowController.Attach(app.MainWindow, startVisible: true);
 // over full-screen apps) before a tile can appear. Doing it on a timer instead
 // would show the icon for as long as the timer ran. MacApp.Activate() re-asserts
 // the window style on every show, since Photino resets the level with topmost.
-app.MainWindow.RegisterWindowCreatedHandler((_, _) => MacApp.ConfigureAsLauncher());
+//
+// The menu bar item is set up here too, and not in the eager macOS block below:
+// NSApplication (and the run loop that hosts it) does not exist until app.Run(),
+// so messaging [NSStatusBar systemStatusBar] any earlier yields an item that is
+// created but never rendered. This handler fires once the native window (and
+// therefore NSApplication) exists, and still on the main thread, which
+// NSStatusBar requires.
+app.MainWindow.RegisterWindowCreatedHandler((_, _) =>
+{
+    MacApp.ConfigureAsLauncher();
+
+    if (OperatingSystem.IsMacOS())
+    {
+        try { MacStatusBar.Setup("Pane", () => windowController.ToggleVisible()); }
+        catch (Exception ex) { Console.Error.WriteLine("pane: menu bar setup failed: " + ex.Message); }
+    }
+});
 
 // ── Post-startup tasks ─────────────────────────────────────────────────────
 // Initialize built-in features before the message loop starts. This also
@@ -109,19 +125,17 @@ app.MainWindow.RegisterWindowCreatedHandler((_, _) => MacApp.ConfigureAsLauncher
 await app.Services.GetRequiredService<QueryDispatcher>()
     .InitializeAsync(new FeatureContext(Path.Combine(dataRoot, "data"), home), CancellationToken.None);
 
-// ── Global hotkey + menu bar ───────────────────────────────────────────────
+// ── Global hotkey (menu bar item is wired up in the window-created handler
+// above, once NSApplication exists) ────────────────────────────────────────
 var settings = settingsStore.Load();
 IGlobalHotkey? hotkey = null;
 
 if (OperatingSystem.IsMacOS())
 {
-    // Carbon hotkey needs NO Accessibility permission (unlike a keyboard tap),
-    // and a menu-bar item as a click-to-open fallback. Both handlers fire on
-    // the main thread, so window calls are safe without marshalling.
+    // Carbon hotkey needs NO Accessibility permission (unlike a keyboard tap).
+    // Fires on the main thread, so window calls are safe without marshalling.
     if (!MacGlobalHotkey.Register(settings.Hotkey, () => windowController.ToggleVisible()))
         Console.Error.WriteLine($"pane: could not register hotkey '{settings.Hotkey}'");
-    try { MacStatusBar.Setup("Pane", () => windowController.ToggleVisible()); }
-    catch (Exception ex) { Console.Error.WriteLine("pane: menu bar setup failed: " + ex.Message); }
 }
 else
 {
