@@ -5,12 +5,29 @@ using Microsoft.Extensions.DependencyInjection;
 using Pane.Core.Contracts;
 using Pane.Core.Query;
 using Pane.Core.Settings;
+using Pane.Core.Startup;
+using Pane.Core.Updates;
 using Pane.Ui.Settings;
 using Pane.Ui.Tests;
 using Xunit;
 
 public class SettingsPageTests : IDisposable
 {
+    sealed class NoInstaller : IUpdateInstaller
+    {
+        public bool CanInstall => false;
+        public string? UnavailableReason => "not installed";
+        public Task InstallAsync(ReleaseAsset asset, AppVersion expected,
+                                 IProgress<int> progress, CancellationToken ct) =>
+            Task.CompletedTask;
+    }
+
+    sealed class NoReleases : IReleaseSource
+    {
+        public Task<ReleaseInfo?> FetchLatestAsync(CancellationToken ct) =>
+            Task.FromResult<ReleaseInfo?>(null);
+    }
+
     readonly string _path = Path.Combine(Path.GetTempPath(), $"pane-ui-{Guid.NewGuid():N}.json");
     readonly TestContext _ctx = new();
     readonly SettingsStore _store;
@@ -24,6 +41,11 @@ public class SettingsPageTests : IDisposable
             new FuzzyMatcher(), _store, new IPaneFeature[] { _demo, _other });
         _ctx.Services.AddSingleton(_store);
         _ctx.Services.AddSingleton(dispatcher);
+        _ctx.Services.AddSingleton(new UpdateService(
+            new NoReleases(), new NoInstaller(),
+            new UpdateState(Path.Combine(Path.GetTempPath(), $"pane-ui-state-{Guid.NewGuid():N}.json")),
+            new AppVersion(1, 2, 0)));
+        _ctx.Services.AddSingleton<ILoginItem>(new UnsupportedLoginItem());
     }
 
     public void Dispose()

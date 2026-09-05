@@ -1,5 +1,10 @@
 @using Pane.Core.Settings
+@using Pane.Core.Startup
+@using Pane.Core.Updates
+@implements IDisposable
 @inject SettingsStore Settings
+@inject UpdateService Updates
+@inject ILoginItem LoginItem
 
 <div class="pane-feature-settings">
     <label class="pane-setting">
@@ -17,13 +22,96 @@
     {
         <span class="pane-warn">@_error</span>
     }
+
+    <label class="pane-setting">
+        <span class="pane-setting-label">
+            Start at login
+            <span class="pane-setting-help">
+                @(LoginItem.CanManage
+                    ? "Pane launches hidden when you log in, so the hotkey is always live."
+                    : LoginItem.UnavailableReason)
+            </span>
+        </span>
+        <input type="checkbox" name="startAtLogin"
+               checked="@LoginItem.IsEnabled"
+               disabled="@(!LoginItem.CanManage)"
+               @onchange="OnStartAtLoginChanged" />
+    </label>
+
+    <label class="pane-setting">
+        <span class="pane-setting-label">
+            Check for updates automatically
+            <span class="pane-setting-help">
+                Asks GitHub for a newer release once a day. Pane never installs
+                one without you pressing Update.
+            </span>
+        </span>
+        <input type="checkbox" name="autoCheckUpdates"
+               checked="@_autoCheck" @onchange="OnAutoCheckChanged" />
+    </label>
+
+    <div class="pane-setting pane-update">
+        <span class="pane-setting-label">
+            <span class="pane-version">Pane v@(Updates.CurrentVersion)</span>
+            <span class="pane-setting-help pane-update-status">@StatusText</span>
+            @if (!Updates.CanInstall && Updates.InstallUnavailableReason is { } why)
+            {
+                <span class="pane-setting-help">@why</span>
+            }
+        </span>
+        <span class="pane-update-actions">
+            @if (Updates.Status is UpdateStatus.Available && Updates.CanInstall)
+            {
+                <button class="pane-install-update" @onclick="Install">Install and restart</button>
+            }
+            <button class="pane-check-updates" disabled="@Busy" @onclick="Check">Check now</button>
+        </span>
+    </div>
 </div>
 
 @code {
     string _hotkey = "";
     string? _error;
+    bool _autoCheck;
 
-    protected override void OnInitialized() => _hotkey = Settings.Load().Hotkey;
+    protected override void OnInitialized()
+    {
+        var settings = Settings.Load();
+        _hotkey = settings.Hotkey;
+        _autoCheck = settings.AutoCheckUpdates;
+        Updates.StatusChanged += OnStatusChanged;
+    }
+
+    public void Dispose() => Updates.StatusChanged -= OnStatusChanged;
+
+    // The service raises this from whichever thread ran the check, so hop back
+    // to the renderer's context before touching component state.
+    void OnStatusChanged() => InvokeAsync(StateHasChanged);
+
+    bool Busy => Updates.Status is UpdateStatus.Checking
+                                or UpdateStatus.Downloading
+                                or UpdateStatus.Installing;
+
+    string StatusText => Updates.Status switch
+    {
+        UpdateStatus.Checking => "Checking for updates…",
+        UpdateStatus.UpToDate { CheckedAt: { } at } => $"Up to date — checked {Ago(at)}.",
+        UpdateStatus.UpToDate => "Up to date.",
+        UpdateStatus.Available a => $"Pane v{a.Release.Version} is available.",
+        UpdateStatus.Downloading d => $"Downloading… {d.Percent}%",
+        UpdateStatus.Installing => "Installing — Pane will restart.",
+        UpdateStatus.Failed f => f.Message,
+        _ => "",
+    };
+
+    static string Ago(DateTimeOffset when)
+    {
+        var span = DateTimeOffset.UtcNow - when;
+        if (span < TimeSpan.FromMinutes(1)) return "just now";
+        if (span < TimeSpan.FromHours(1)) return $"{(int)span.TotalMinutes} min ago";
+        if (span < TimeSpan.FromDays(1)) return $"{(int)span.TotalHours} h ago";
+        return $"{(int)span.TotalDays} d ago";
+    }
 
     // Parse is lenient, so an unchecked combo would save happily and then never
     // fire — leaving no way back into settings except editing the file by hand.
@@ -40,4 +128,31 @@
         _hotkey = combo;
         Settings.Save(Settings.Load() with { Hotkey = combo });
     }
+
+    void OnStartAtLoginChanged(ChangeEventArgs e)
+    {
+        if (!LoginItem.CanManage) return;
+
+        // Load-modify-save through the live object, then re-read: the checkbox
+        // must show what is actually on disk, not what we asked for.
+        try
+        {
+            if ((bool)e.Value!) LoginItem.Enable();
+            else LoginItem.Disable();
+            _error = null;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    void OnAutoCheckChanged(ChangeEventArgs e)
+    {
+        _autoCheck = (bool)e.Value!;
+        Settings.Save(Settings.Load() with { AutoCheckUpdates = _autoCheck });
+    }
+
+    Task Check() => Updates.CheckAsync(CancellationToken.None);
+    Task Install() => Updates.InstallAsync(CancellationToken.None);
 }

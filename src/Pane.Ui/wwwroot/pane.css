@@ -528,3 +528,49 @@ kbd {
 }
 
 .pane-setting input[type="number"] { flex: 0 0 80px; }
+
+/* ── Update / startup controls ─────────────────────────────────────────── */
+.pane-update {
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+}
+
+.pane-version {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.pane-update-status { min-height: 15px; }
+
+.pane-update-actions {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+}
+
+.pane-update-actions button {
+    background: var(--bg-elev);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.pane-update-actions button:hover:not(:disabled) { background: var(--sel); }
+
+.pane-update-actions button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.pane-update-actions .pane-install-update {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 500;
+}
