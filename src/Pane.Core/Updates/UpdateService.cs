@@ -62,7 +62,7 @@ public sealed class UpdateService
             _state.SaveLastCheck(now);
             Set(new UpdateStatus.UpToDate(now));
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             Set(new UpdateStatus.Idle());
         }
@@ -95,14 +95,14 @@ public sealed class UpdateService
             return;
         }
 
-        var progress = new Progress<int>(pct => Set(new UpdateStatus.Downloading(pct)));
+        var progress = new SynchronousProgress<int>(pct => Set(new UpdateStatus.Downloading(pct)));
         try
         {
             Set(new UpdateStatus.Downloading(0));
             await _installer.InstallAsync(available.Asset, available.Release.Version, progress, ct);
             Set(new UpdateStatus.Installing());
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             Set(available);   // still offered, nothing was changed
         }
@@ -128,5 +128,15 @@ public sealed class UpdateService
     {
         Status = status;
         StatusChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// An IProgress&lt;T&gt; that invokes its callback inline rather than via
+    /// SynchronizationContext.Post (what Progress&lt;T&gt; does), so progress is
+    /// observed deterministically instead of racing a queued callback.
+    /// </summary>
+    sealed class SynchronousProgress<T>(Action<T> callback) : IProgress<T>
+    {
+        public void Report(T value) => callback(value);
     }
 }

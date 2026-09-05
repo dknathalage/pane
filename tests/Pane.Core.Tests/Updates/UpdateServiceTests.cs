@@ -133,6 +133,35 @@ public class UpdateServiceTests
     }
 
     [Fact]
+    public async Task A_timeout_becomes_a_readable_failure_not_a_silent_idle()
+    {
+        // HttpClient throws TaskCanceledException (which derives from
+        // OperationCanceledException) on a timeout even when nobody asked to
+        // cancel. With a token that was never cancelled, that must surface as
+        // Failed, not be swallowed as if the caller cancelled.
+        var source = new FakeSource { Throw = new TaskCanceledException("timed out") };
+        var svc = Service(source, new());
+
+        await svc.CheckAsync(CancellationToken.None);
+
+        var failed = Assert.IsType<UpdateStatus.Failed>(svc.Status);
+        Assert.Equal("The update check timed out.", failed.Message);
+    }
+
+    [Fact]
+    public async Task Genuine_caller_cancellation_leaves_the_service_idle()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var source = new FakeSource { Throw = new OperationCanceledException(cts.Token) };
+        var svc = Service(source, new());
+
+        await svc.CheckAsync(cts.Token);
+
+        Assert.IsType<UpdateStatus.Idle>(svc.Status);
+    }
+
+    [Fact]
     public async Task A_failed_check_does_not_advance_the_last_check_time()
     {
         var path = TempPath();
@@ -262,7 +291,7 @@ public class UpdateServiceTests
     }
 
     [Fact]
-    public async Task A_failed_install_reports_why_and_keeps_the_update_offered()
+    public async Task A_failed_install_reports_why_it_failed()
     {
         var installer = new FakeInstaller { Throw = new InvalidOperationException("bad bundle") };
         var svc = Service(new FakeSource { Release = ReleaseWithAsset("1.3.0") }, installer);
