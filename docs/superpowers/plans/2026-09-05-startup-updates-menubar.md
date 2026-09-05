@@ -3131,16 +3131,21 @@ builder.Services.AddSingleton<ILoginItem>(_ =>
     {
         try
         {
-            var app = Send(GetClass("NSApplication"), Sel("sharedApplication"));
-            if (app != IntPtr.Zero) SendVoid(app, Sel("terminate:"), IntPtr.Zero);
+            // SharedApp() and SendPtr are the helpers this class already
+            // declares; terminate: returns void, and objc_msgSend's IntPtr
+            // return is simply ignored. Do NOT add a SendVoid overload — that
+            // one belongs to MacStatusBar.
+            var app = SharedApp();
+            if (app != IntPtr.Zero) SendPtr(app, Sel("terminate:"), IntPtr.Zero);
+            else Environment.Exit(0);
         }
         catch { Environment.Exit(0); }
     }
 ```
 
-If `MacApp.cs` does not already declare `Send`, `SendVoid`, `GetClass` and `Sel`
-with those exact signatures, use whatever equivalents it does declare — read the
-file first and match its existing interop helpers rather than adding duplicates.
+`MacApp.cs` already declares `GetClass`, `Sel`, `Send`, `SendPtr` and a private
+`SharedApp()` helper (see `src/Pane.App/MacApp.cs:15-39`). Use those; add no new
+P/Invoke declarations for this method.
 
 - [ ] **Step 3: Kick off the auto-check after the window is up**
 
