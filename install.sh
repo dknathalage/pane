@@ -79,6 +79,9 @@ cat > "$PLIST" <<PLISTEOF
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><false/>
   <key>ProcessType</key><string>Interactive</string>
+  <!-- Without this, launchd kills Pane's whole process group (including the
+       updater's detached swap helper) the moment this job exits. -->
+  <key>AbandonProcessGroup</key><true/>
 </dict>
 </plist>
 PLISTEOF

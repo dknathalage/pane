@@ -30,6 +30,12 @@ public static class LaunchAgentPlist
           <key>RunAtLoad</key><true/>
           <key>KeepAlive</key><false/>
           <key>ProcessType</key><string>Interactive</string>
+          <!-- Without this, launchd kills every process in Pane's process group
+               (man 5 launchd.plist) the moment this job dies — including the
+               updater's detached swap helper, spawned as an ordinary child and
+               mid-sleep waiting for Pane to exit. That would silently drop
+               every update attempted from a login-item launch. -->
+          <key>AbandonProcessGroup</key><true/>
         </dict>
         </plist>
         """;

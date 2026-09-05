@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+# SUPERSEDED by ../install.sh (or `install.sh --local`) — that is the
+# supported install path. This script publishes a framework-dependent build
+# into ~/Applications/Pane, which is NOT a .app bundle: BundleLayout.
+# CurrentBundle() returns null for it, so neither the in-app updater nor the
+# Start-at-login toggle can manage an install made this way. Kept for anyone
+# who relied on it, not deleted, but do not point new users at it.
+#
 # Install Pane as a login item (LaunchAgent) so the global hotkey is always
 # listening. Publishes the app and loads a per-user
 # LaunchAgent that starts Pane hidden at login.

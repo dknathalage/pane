@@ -36,6 +36,18 @@ public class LaunchAgentPlistTests
     }
 
     [Fact]
+    public void The_plist_abandons_its_process_group_so_launchd_does_not_kill_the_update_helper()
+    {
+        // man 5 launchd.plist: without this, launchd kills every process in
+        // the job's process group when the job dies — including the updater's
+        // detached swap helper, spawned as an ordinary child of Pane.
+        var plist = LaunchAgentPlist.Build(Exec);
+
+        Assert.Contains("<key>AbandonProcessGroup</key><true/>",
+            plist.Replace("\n", "").Replace("  ", ""));
+    }
+
+    [Fact]
     public void The_plist_is_well_formed_xml()
     {
         var doc = System.Xml.Linq.XDocument.Parse(LaunchAgentPlist.Build(Exec));
