@@ -41,7 +41,12 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Build Pane.app (${{ matrix.rid }})
-        run: bash build/make-app.sh ${{ matrix.rid }} dist
+        env:
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          export PANE_VERSION="${TAG##*v}"
+          echo "Building version $PANE_VERSION from tag $TAG"
+          bash build/make-app.sh ${{ matrix.rid }} dist
 
       - name: Zip Pane.app
         run: |

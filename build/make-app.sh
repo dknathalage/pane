@@ -15,10 +15,21 @@ OUTDIR="${2:-$ROOT/dist}"
 APP="$OUTDIR/Pane.app"
 PUBLISH="$OUTDIR/.publish-$RID"
 
+# Version: CI passes PANE_VERSION from the release tag; locally we read the
+# release-please manifest, which is the single source of truth. A dev build
+# with neither is 0.0.0 — honest, and lower than any real release.
+if [ -n "${PANE_VERSION:-}" ]; then
+  VERSION="$PANE_VERSION"
+elif [ -f "$ROOT/.release-please-manifest.json" ]; then
+  VERSION="$(sed -n 's/.*"\.": *"\([^"]*\)".*/\1/p' "$ROOT/.release-please-manifest.json")"
+fi
+VERSION="${VERSION:-0.0.0}"
+echo "==> Version $VERSION"
+
 echo "==> Publishing self-contained Pane.App ($RID)"
 rm -rf "$APP" "$PUBLISH"
 dotnet publish "$ROOT/src/Pane.App" -c Release -r "$RID" --self-contained true \
-  -p:PublishSingleFile=false -o "$PUBLISH" --nologo -v q
+  -p:PublishSingleFile=false -p:Version="$VERSION" -o "$PUBLISH" --nologo -v q
 
 echo "==> Assembling $APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -38,8 +49,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>Pane</string>
   <key>CFBundleDisplayName</key><string>Pane</string>
   <key>CFBundleIdentifier</key><string>com.pane.launcher</string>
-  <key>CFBundleVersion</key><string>1.0</string>
-  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleVersion</key><string>$VERSION</string>
+  <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleExecutable</key><string>Pane.App</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>LSMinimumSystemVersion</key><string>11.0</string>
